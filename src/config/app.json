@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "ico",
+    "slug": "ico",
+    "scheme": "ico",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/presentation/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/presentation/assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.lmacml.ico",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/presentation/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./src/presentation/assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "root": "./src/presentation/navigation"
+        }
+      ]
+    ]
+  }
+}
