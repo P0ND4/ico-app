@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Text, type TextProps, StyleSheet, type TextStyle } from "react-native";
+import { useThemeColors } from "../../../hooks/useThemeColors";
 
 export type TextVariant =
   | "bigTitle"
@@ -19,6 +20,7 @@ export interface AppTextProps extends TextProps {
   align?: "auto" | "left" | "right" | "center" | "justify";
   weight?: TextStyle["fontWeight"];
   lineThrough?: boolean;
+  muted?: boolean;
 }
 
 const VARIANTS = StyleSheet.create({
@@ -42,16 +44,21 @@ const AppText: React.FC<AppTextProps> = ({
   style,
   children,
   lineThrough,
+  muted = false,
   ...rest
 }) => {
+  const theme = useThemeColors();
+
   const dynamicStyle = useMemo<TextStyle>(() => {
+    const resolvedColor = color ?? (muted ? theme.textMuted : theme.textPrimary);
+
     return {
-      color: color || "#000000",
+      color: resolvedColor,
       textAlign: align,
       ...(weight && { fontWeight: weight }),
       ...(lineThrough && { textDecorationLine: "line-through" }),
     };
-  }, [color, align, weight, lineThrough]);
+  }, [color, align, weight, lineThrough, muted, theme.textPrimary, theme.textMuted]);
 
   return (
     <Text maxFontSizeMultiplier={1.3} style={[styles.base, VARIANTS[variant], dynamicStyle, style]} {...rest}>

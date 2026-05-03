@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   type StyleProp,
   type ViewStyle,
+  type TextStyle,
   type TextInputProps,
 } from "react-native";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
+import { useThemeColors } from "../../../hooks/useThemeColors";
 
 export interface AppInputProps extends TextInputProps {
   stylesContainer?: StyleProp<ViewStyle>;
@@ -42,6 +44,7 @@ const styles = StyleSheet.create({
 const AppInput = React.forwardRef<TextInput, AppInputProps>(
   ({ editable = true, style, stylesContainer, secureTextEntry, left, right, ...rest }, ref) => {
     const [isShow, setShow] = useState(false);
+    const theme = useThemeColors();
 
     const dynamicStyle = useMemo<ViewStyle>(() => {
       return {
@@ -49,23 +52,37 @@ const AppInput = React.forwardRef<TextInput, AppInputProps>(
       };
     }, [editable]);
 
+    const containerStyle = useMemo<ViewStyle>(() => {
+      return {
+        backgroundColor: theme.surface,
+        borderWidth: 1,
+        borderColor: theme.border,
+      };
+    }, [theme.surface, theme.border]);
+
+    const inputStyle = useMemo<TextStyle>(() => {
+      return {
+        color: theme.textPrimary,
+      };
+    }, [theme.textPrimary]);
+
     return (
-      <View style={[styles.defaultContainer, stylesContainer]}>
+      <View style={[styles.defaultContainer, containerStyle, stylesContainer]}>
         {left && left()}
 
         <TextInput
           ref={ref}
-          style={[styles.defaultInput, dynamicStyle, style]}
+          style={[styles.defaultInput, inputStyle, dynamicStyle, style]}
           secureTextEntry={secureTextEntry && !isShow}
           editable={editable}
           maxFontSizeMultiplier={1.3}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={theme.textMuted}
           {...rest}
         />
 
         {secureTextEntry && (
           <TouchableOpacity style={styles.iconContainer} activeOpacity={0.7} onPress={() => setShow(!isShow)}>
-            <FontAwesome5 name={isShow ? "eye" : "eye-slash"} size={20} color="#6b7280" />
+            <FontAwesome5 name={isShow ? "eye" : "eye-slash"} size={20} color={theme.textMuted} />
           </TouchableOpacity>
         )}
 
