@@ -1,43 +1,48 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet } from 'react-native';
+import { Animated, Text, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConnectivity } from '../../../hooks/useConnectivity';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+
+export const OFFLINE_BANNER_HEIGHT = 44;
 
 export function OfflineBanner() {
   const isOnline = useConnectivity();
   const theme = useThemeColors();
-  const translateY = useRef(new Animated.Value(60)).current;
+  const insets = useSafeAreaInsets();
+  const totalHeight = OFFLINE_BANNER_HEIGHT + insets.bottom;
+  const animatedHeight = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(translateY, {
-      toValue: isOnline ? 60 : 0,
-      useNativeDriver: true,
+    Animated.spring(animatedHeight, {
+      toValue: isOnline ? 0 : totalHeight,
+      useNativeDriver: false,
       damping: 15,
     }).start();
-  }, [isOnline, translateY]);
+  }, [isOnline, totalHeight, animatedHeight]);
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        { backgroundColor: theme.danger, transform: [{ translateY }] },
-      ]}
-    >
-      <Text style={styles.text}>Sin conexión — funcionalidades limitadas</Text>
+    <Animated.View style={{ height: animatedHeight, overflow: 'hidden' }}>
+      <View
+        style={[
+          styles.container,
+          {
+            height: totalHeight,
+            paddingBottom: insets.bottom,
+            backgroundColor: theme.danger,
+          },
+        ]}
+      >
+        <Text style={styles.text}>Sin conexión — funcionalidades limitadas</Text>
+      </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 999,
   },
   text: {
     color: '#FFFFFF',

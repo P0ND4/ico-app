@@ -21,6 +21,6 @@ export const persistConfig = {
   key: 'root',
   version: 1,
   storage: AsyncStorage,
-  whitelist: ['auth', 'user', 'paths', 'catalog', 'plan'],
+  whitelist: ['auth', 'user', 'paths', 'catalog', 'plan', 'offlineQueue'],
   transforms: [planTransform],
 };

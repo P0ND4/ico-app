@@ -2,10 +2,32 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import { pathApiRepository } from '../../infrastructure/api/repositories/path.api.repository';
 import { chapterApiRepository } from '../../infrastructure/api/repositories/chapter.api.repository';
 import { lessonApiRepository } from '../../infrastructure/api/repositories/lesson.api.repository';
-import type { GeneratePathDto, CompleteChapterDto, RecordAnswerDto } from '../../domain/entities/path.entity';
+import type { GeneratePathDto, CompleteChapterDto, RecordAnswerDto, CompleteChapterResult } from '../../domain/entities/path.entity';
 import type { UpdatePathDto } from '../../domain/repositories/path.repository.interface';
 import type { RootState } from '../store/index';
+import { enqueueCompleteChapter, enqueueRecordAnswer } from '../slices/offline-queue.slice';
 import { fetchProfile, fetchStats } from './user.thunks';
+
+function buildOptimisticCompleteResult(
+  state: RootState,
+  pathId: string,
+  chapterId: string,
+): CompleteChapterResult {
+  const chapter = state.paths.chapters[chapterId];
+  const path = state.paths.paths[pathId];
+  const chaptersList = Object.values(state.paths.chapters)
+    .filter((c) => c.pathId === pathId)
+    .sort((a, b) => a.order - b.order);
+  const currentIndex = chaptersList.findIndex((c) => c.id === chapterId);
+  const hasNext = currentIndex >= 0 && currentIndex + 1 < chaptersList.length;
+  const nextChapterUnlocked = hasNext && chaptersList[currentIndex + 1]?.status === 'current';
+
+  return {
+    chapter: chapter!,
+    nextChapterUnlocked,
+    pathCompleted: path?.status === 'completed',
+  };
+}
 
 export const fetchPaths = createAsyncThunk(
   'paths/fetchAll',
@@ -63,8 +85,19 @@ export const completeChapter = createAsyncThunk(
       chapterId,
       ...dto
     }: { pathId: string; chapterId: string } & CompleteChapterDto,
-    { rejectWithValue, dispatch },
+    { getState, rejectWithValue, dispatch },
   ) => {
+    const state = getState() as RootState;
+
+    if (!state.connectivity.isOnline) {
+      dispatch(enqueueCompleteChapter({ pathId, chapterId, dto }));
+      dispatch({
+        type: 'paths/applyOptimisticChapterComplete',
+        payload: { pathId, chapterId, ...dto },
+      });
+      return buildOptimisticCompleteResult(getState() as RootState, pathId, chapterId);
+    }
+
     try {
       const result = await chapterApiRepository.complete(pathId, chapterId, dto);
       dispatch(fetchProfile());
@@ -85,11 +118,19 @@ export const recordAnswer = createAsyncThunk(
       lessonId,
       ...dto
     }: { pathId: string; chapterId: string; lessonId: string } & RecordAnswerDto,
+    { getState, dispatch },
   ) => {
+    const state = getState() as RootState;
+
+    if (!state.connectivity.isOnline) {
+      dispatch(enqueueRecordAnswer({ pathId, chapterId, lessonId, dto }));
+      return;
+    }
+
     try {
       await lessonApiRepository.recordAnswer(pathId, chapterId, lessonId, dto);
     } catch {
-      // fire-and-forget — stats update is low-stakes
+      dispatch(enqueueRecordAnswer({ pathId, chapterId, lessonId, dto }));
     }
   },
 );

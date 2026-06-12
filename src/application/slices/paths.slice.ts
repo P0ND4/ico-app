@@ -1,12 +1,11 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { LearningPath, Chapter, Lesson } from '../../domain/entities/path.entity';
+import type { LearningPath, Chapter, Lesson, CompleteChapterResult } from '../../domain/entities/path.entity';
 import {
   fetchPaths,
   generatePath,
   fetchPathWithChapters,
   fetchChapterWithLessons,
   fetchPathJob,
-  completeChapter,
   updatePath,
   deletePath,
 } from '../thunks/paths.thunks';
@@ -31,19 +30,80 @@ const initialState: PathsState = {
   error: null,
 };
 
+function applyCompleteChapterResult(state: PathsState, payload: CompleteChapterResult) {
+  const { chapter, nextChapterUnlocked, pathCompleted } = payload;
+  const previousChapter = state.chapters[chapter.id];
+  const wasAlreadyCompleted = previousChapter?.status === 'completed';
+  const { lessons: _l2, ...chapterWithoutLessons } = chapter;
+  state.chapters[chapter.id] = chapterWithoutLessons;
+  const pathId = chapter.pathId ?? previousChapter?.pathId;
+  const path = pathId ? state.paths[pathId] : Object.values(state.paths).find(p =>
+    Object.values(state.chapters).some(c => c.id === chapter.id && c.pathId === p.id)
+  );
+  if (path && !wasAlreadyCompleted) {
+    path.completedChapterCount = (path.completedChapterCount ?? 0) + 1;
+    path.earnedXp = (path.earnedXp ?? 0) + (chapter.earnedXp ?? 0);
+    if (pathCompleted) path.status = 'completed';
+  }
+  if (nextChapterUnlocked) {
+    const chaptersList = Object.values(state.chapters)
+      .filter(c => c.pathId === chapter.pathId)
+      .sort((a, b) => a.order - b.order);
+    const currentIndex = chaptersList.findIndex(c => c.id === chapter.id);
+    if (currentIndex >= 0 && currentIndex + 1 < chaptersList.length) {
+      const nextChapter = chaptersList[currentIndex + 1];
+      if (nextChapter) {
+        state.chapters[nextChapter.id] = { ...nextChapter, status: 'current' };
+      }
+    }
+  }
+}
+
 const pathsSlice = createSlice({
   name: 'paths',
   initialState,
   reducers: {
-    optimisticCompleteChapter: (
+    mergeCompleteChapterResult: (state, action: PayloadAction<CompleteChapterResult>) => {
+      applyCompleteChapterResult(state, action.payload);
+    },
+    applyOptimisticChapterComplete: (
       state,
-      action: PayloadAction<{ chapterId: string; earnedXp: number }>,
+      action: PayloadAction<{
+        pathId: string;
+        chapterId: string;
+        earnedXp: number;
+        correctCount: number;
+        totalQuestions: number;
+      }>,
     ) => {
-      const chapter = state.chapters[action.payload.chapterId];
-      if (chapter) {
-        chapter.status = 'completed';
-        chapter.earnedXp = action.payload.earnedXp;
-        chapter.completedAt = new Date().toISOString();
+      const { pathId, chapterId, earnedXp, correctCount, totalQuestions } = action.payload;
+      const chapter = state.chapters[chapterId];
+      if (!chapter || chapter.status === 'completed') return;
+
+      chapter.status = 'completed';
+      chapter.earnedXp = earnedXp;
+      chapter.correctAnswers = correctCount;
+      chapter.totalQuestions = totalQuestions;
+      chapter.completedAt = new Date().toISOString();
+
+      const path = state.paths[pathId];
+      if (path) {
+        path.completedChapterCount = (path.completedChapterCount ?? 0) + 1;
+        path.earnedXp = (path.earnedXp ?? 0) + earnedXp;
+      }
+
+      const chaptersList = Object.values(state.chapters)
+        .filter((c) => c.pathId === pathId)
+        .sort((a, b) => a.order - b.order);
+      const currentIndex = chaptersList.findIndex((c) => c.id === chapterId);
+
+      if (currentIndex >= 0 && currentIndex + 1 < chaptersList.length) {
+        const nextChapter = chaptersList[currentIndex + 1];
+        if (nextChapter && nextChapter.status !== 'completed') {
+          state.chapters[nextChapter.id] = { ...nextChapter, status: 'current' };
+        }
+      } else if (currentIndex === chaptersList.length - 1 && path) {
+        path.status = 'completed';
       }
     },
   },
@@ -113,34 +173,8 @@ const pathsSlice = createSlice({
         }
       })
       // completeChapter
-      .addCase(completeChapter.fulfilled, (state, action) => {
-        const { chapter, nextChapterUnlocked, pathCompleted } = action.payload;
-        const previousChapter = state.chapters[chapter.id];
-        const wasAlreadyCompleted = previousChapter?.status === 'completed';
-        const { lessons: _l2, ...chapterWithoutLessons } = chapter;
-        state.chapters[chapter.id] = chapterWithoutLessons;
-        const pathId = chapter.pathId ?? previousChapter?.pathId;
-        const path = pathId ? state.paths[pathId] : Object.values(state.paths).find(p =>
-          Object.values(state.chapters).some(c => c.id === chapter.id && c.pathId === p.id)
-        );
-        if (path && !wasAlreadyCompleted) {
-          path.completedChapterCount = (path.completedChapterCount ?? 0) + 1;
-          path.earnedXp = (path.earnedXp ?? 0) + (chapter.earnedXp ?? 0);
-          if (pathCompleted) path.status = 'completed';
-        }
-        if (nextChapterUnlocked) {
-          // find next chapter and unlock it
-          const chaptersList = Object.values(state.chapters)
-            .filter(c => c.pathId === chapter.pathId)
-            .sort((a, b) => a.order - b.order);
-          const currentIndex = chaptersList.findIndex(c => c.id === chapter.id);
-          if (currentIndex >= 0 && currentIndex + 1 < chaptersList.length) {
-            const nextChapter = chaptersList[currentIndex + 1];
-            if (nextChapter) {
-              state.chapters[nextChapter.id] = { ...nextChapter, status: 'current' };
-            }
-          }
-        }
+      .addCase('paths/completeChapter/fulfilled', (state, action: PayloadAction<CompleteChapterResult>) => {
+        applyCompleteChapterResult(state, action.payload);
       })
       // updatePath
       .addCase(updatePath.fulfilled, (state, action) => {
@@ -164,5 +198,5 @@ const pathsSlice = createSlice({
   },
 });
 
-export const { optimisticCompleteChapter } = pathsSlice.actions;
+export const { mergeCompleteChapterResult, applyOptimisticChapterComplete } = pathsSlice.actions;
 export default pathsSlice.reducer;

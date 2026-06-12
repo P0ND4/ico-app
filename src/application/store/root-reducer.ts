@@ -8,6 +8,7 @@ import planReducer from '../slices/plan.slice';
 import catalogReducer from '../slices/catalog.slice';
 import connectivityReducer from '../slices/connectivity.slice';
 import paywallReducer from '../slices/paywall.slice';
+import offlineQueueReducer from '../slices/offline-queue.slice';
 
 export const rootReducer = combineReducers({
   auth: authReducer,
@@ -19,4 +20,5 @@ export const rootReducer = combineReducers({
   catalog: catalogReducer,
   connectivity: connectivityReducer,
   paywall: paywallReducer,
+  offlineQueue: offlineQueueReducer,
 });

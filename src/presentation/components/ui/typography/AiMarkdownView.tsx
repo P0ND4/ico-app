@@ -3,6 +3,7 @@ import { View, useColorScheme } from 'react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
 import { useThemeColors } from '../../../hooks/useThemeColors';
+import { preprocessMarkdownImageUrls } from '../../../utils/markdown-image.utils';
 
 export interface AiMarkdownViewProps {
   content: string;
@@ -35,13 +36,27 @@ interface HtmlOptions {
   compact: boolean;
   isDark: boolean;
   includeMermaid: boolean;
+  scrollable: boolean;
+}
+
+function estimateMarkdownHeight(content: string, fontSize: number, compact: boolean): number {
+  const lineHeight = compact ? 20 : Math.round(fontSize * 1.55);
+  const lines = content.split('\n').length;
+  const mermaidBlocks = (content.match(/```mermaid/gi) ?? []).length;
+  const tables = (content.match(/^\|.+\|$/gm) ?? []).length;
+  const images = (content.match(/!\[/g) ?? []).length;
+  const extra = mermaidBlocks * 180 + tables * 36 + images * 120;
+  return Math.min(6000, Math.max(120, lines * lineHeight + extra + 24));
 }
 
 function buildHtml(opts: HtmlOptions): string {
-  const { content, textColor, primaryColor, borderColor, codeBg, fontSize, compact, isDark, includeMermaid } = opts;
+  const { content, textColor, primaryColor, borderColor, codeBg, fontSize, compact, isDark, includeMermaid, scrollable } = opts;
   const escaped = JSON.stringify(content);
   const mermaidTheme = isDark ? 'dark' : 'default';
   const pad = compact ? 0 : 2;
+  const pageOverflow = scrollable
+    ? 'height:auto;min-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch'
+    : 'height:auto;min-height:0;overflow:hidden';
 
   return `<!DOCTYPE html>
 <html>
@@ -51,9 +66,9 @@ function buildHtml(opts: HtmlOptions): string {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;background:transparent}
+html,body{margin:0;padding:0;background:transparent;${pageOverflow}}
 body{color:${textColor};font-size:${fontSize}px;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,sans-serif;word-break:break-word;padding:${pad}px}
-#r{width:100%}
+#r{width:100%;display:inline-block;vertical-align:top}
 p{margin:0 0 ${compact ? 6 : 8}px}p:last-child{margin-bottom:0}
 h1{font-size:${fontSize + 6}px;font-weight:700;margin:0 0 6px;color:${textColor}}
 h2{font-size:${fontSize + 4}px;font-weight:700;margin:0 0 4px;color:${textColor}}
@@ -73,6 +88,8 @@ th{background:${codeBg};font-weight:700}
 .katex-display{overflow-x:auto;margin:8px 0;-webkit-overflow-scrolling:touch}
 .katex{font-size:1.05em}
 a{color:${primaryColor}}
+img{max-width:100%;height:auto;border-radius:8px;margin:8px 0;display:block}
+.img-fallback{display:block;margin:8px 0;font-style:italic;opacity:.7;color:${textColor}}
 hr{border:none;border-top:1px solid ${borderColor};margin:12px 0}
 </style>
 </head>
@@ -102,18 +119,45 @@ ${includeMermaid ? '<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/me
     });
   }
 
+  function setupImageFallbacks(container){
+    container.querySelectorAll('img').forEach(function(img){
+      img.onerror=function(){
+        var fallback=document.createElement('span');
+        fallback.className='img-fallback';
+        fallback.textContent=img.alt||'Imagen no disponible';
+        img.replaceWith(fallback);
+        scheduleReports();
+      };
+      img.onload=function(){
+        scheduleReports();
+      };
+    });
+  }
+
+  function measureHeight(){
+    return Math.ceil(root.offsetHeight);
+  }
+
   function reportHeight(){
-    var h=Math.ceil(root.scrollHeight);
+    var h=measureHeight();
     if(!h||h===reportHeight.last) return;
     reportHeight.last=h;
     if(window.ReactNativeWebView) window.ReactNativeWebView.postMessage(String(h));
   }
   reportHeight.last=0;
 
+  function scheduleReports(){
+    reportHeight();
+    setTimeout(reportHeight,150);
+    setTimeout(reportHeight,500);
+    setTimeout(reportHeight,1200);
+  }
+
   async function render(){
     try{
       root.innerHTML=marked.parse(raw);
       transformMermaid(root);
+      setupImageFallbacks(root);
       renderMathInElement(root,{
         delimiters:[
           {left:'$$',right:'$$',display:true},
@@ -123,16 +167,17 @@ ${includeMermaid ? '<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/me
         ],
         throwOnError:false
       });
+      scheduleReports();
       var nodes=root.querySelectorAll('.mermaid');
       if(${includeMermaid}&&nodes.length&&typeof mermaid!=='undefined'){
         mermaid.initialize({startOnLoad:false,theme:'${mermaidTheme}',securityLevel:'loose',fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif'});
         await mermaid.run({nodes:nodes});
+        scheduleReports();
       }
     }catch(e){
-      /* fallback: raw markdown already in DOM or empty */
+      root.textContent=raw;
+      scheduleReports();
     }
-    reportHeight();
-    setTimeout(reportHeight,150);
   }
 
   render();
@@ -154,22 +199,29 @@ const AiMarkdownView: React.FC<AiMarkdownViewProps> = ({
   const theme = useThemeColors();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [height, setHeight] = useState(40);
-  const heightRef = useRef(40);
+  const initialHeight = useMemo(
+    () => estimateMarkdownHeight(content, fontSize, compact),
+    [content, fontSize, compact],
+  );
+  const [height, setHeight] = useState(initialHeight);
+  const heightRef = useRef(initialHeight);
+  const heightUpdatesRef = useRef(0);
+  const MAX_HEIGHT = 6000;
 
   const textColor = textColorProp ?? theme.textPrimary;
   const codeBg = isDark ? 'rgba(255,255,255,0.08)' : `${theme.primary}18`;
   const includeMermaid = content.includes('```mermaid');
 
   useEffect(() => {
-    heightRef.current = 40;
-    setHeight(40);
-  }, [content]);
+    heightRef.current = initialHeight;
+    heightUpdatesRef.current = 0;
+    setHeight(initialHeight);
+  }, [content, initialHeight]);
 
   const html = useMemo(
     () =>
       buildHtml({
-        content,
+        content: preprocessMarkdownImageUrls(content),
         textColor,
         primaryColor: theme.primary,
         borderColor: theme.border,
@@ -178,16 +230,19 @@ const AiMarkdownView: React.FC<AiMarkdownViewProps> = ({
         compact,
         isDark,
         includeMermaid,
+        scrollable,
       }),
-    [content, textColor, theme.primary, theme.border, codeBg, fontSize, compact, isDark, includeMermaid],
+    [content, textColor, theme.primary, theme.border, codeBg, fontSize, compact, isDark, includeMermaid, scrollable],
   );
 
   const onMessage = useCallback((e: WebViewMessageEvent) => {
     if (scrollable) return;
+    if (heightUpdatesRef.current >= 8) return;
     const h = parseInt(e.nativeEvent.data, 10);
-    if (isNaN(h) || h <= 0) return;
-    if (Math.abs(heightRef.current - h) < 4) return;
+    if (isNaN(h) || h <= 0 || h > MAX_HEIGHT) return;
+    if (Math.abs(heightRef.current - h) < 2) return;
     heightRef.current = h;
+    heightUpdatesRef.current += 1;
     setHeight(h);
   }, [scrollable]);
 
@@ -212,7 +267,7 @@ const AiMarkdownView: React.FC<AiMarkdownViewProps> = ({
   const webViewPointerEvents = passThroughScroll ? 'none' : 'auto';
 
   return (
-    <View style={{ height, width: '100%' }} pointerEvents="box-none">
+    <View style={{ height, width: '100%', overflow: 'hidden' }} pointerEvents="box-none">
       <WebView
         source={{ html }}
         scrollEnabled={false}
@@ -223,6 +278,8 @@ const AiMarkdownView: React.FC<AiMarkdownViewProps> = ({
         nestedScrollEnabled={!passThroughScroll}
         overScrollMode={passThroughScroll ? 'never' : 'auto'}
         bounces={false}
+        javaScriptEnabled
+        domStorageEnabled
         style={{ backgroundColor, height, width: '100%' }}
         originWhitelist={['*']}
       />

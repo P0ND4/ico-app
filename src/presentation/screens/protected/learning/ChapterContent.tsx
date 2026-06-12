@@ -5,9 +5,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
-  withSequence,
-  withDelay,
   runOnJS,
 } from "react-native-reanimated";
 import Markdown from "react-native-markdown-display";
@@ -30,6 +27,7 @@ import { showPlanLimitAlert, showPremiumFeatureAlert } from "../../../../infrast
 import ChatBubble from "../../../components/ui/cards/ChatBubble";
 import AiMarkdownView from "../../../components/ui/typography/AiMarkdownView";
 import { preprocessMath } from "../../../utils/math.utils";
+import { createAiMarkdownRules } from "../../../utils/markdown-display.rules";
 import PaywallModal from "../../shared/PaywallModal";
 
 function mdStyles(theme: ThemeColors) {
@@ -87,8 +85,11 @@ function mdStyles(theme: ThemeColors) {
     table: { borderWidth: 1, borderColor: theme.border, borderRadius: 8, marginVertical: 8 },
     th: { backgroundColor: `${theme.primary}10`, fontWeight: "700" as const, padding: 8, color: theme.textPrimary },
     td: { padding: 8, color: theme.textPrimary, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+    image: { width: "100%", marginVertical: 8, flex: 0, alignSelf: "stretch" as const },
   };
 }
+
+const questionMarkdownRules = createAiMarkdownRules();
 
 function questionMdStyles(theme: ThemeColors) {
   const base = mdStyles(theme);
@@ -110,7 +111,15 @@ const ReadingLesson: React.FC<ReadingLessonProps> = ({ lesson, theme, onContinue
         {lesson.title}
       </AppText>
     ) : null}
-    <AiMarkdownView content={lesson.content} fontSize={14} scrollable />
+    <ScrollView
+      style={s.readingScroll}
+      contentContainerStyle={s.readingScrollContent}
+      showsVerticalScrollIndicator
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="handled"
+    >
+      <AiMarkdownView content={lesson.content} fontSize={14} passThroughScroll />
+    </ScrollView>
     <AppButton variant="primary" widthFull style={s.continueBtn} onPress={onContinue}>
       <AppText color="#fff" weight="600">{label}</AppText>
     </AppButton>
@@ -127,7 +136,7 @@ interface MCProps {
 
 const MCLesson: React.FC<MCProps> = ({ lesson, theme, selected, answered, onSelect }) => (
   <View style={s.mcWrap}>
-    <Markdown style={questionMdStyles(theme)}>{preprocessMath(lesson.question ?? "")}</Markdown>
+    <Markdown style={questionMdStyles(theme)} rules={questionMarkdownRules}>{preprocessMath(lesson.question ?? "")}</Markdown>
     {(lesson.options ?? []).map((opt, i) => {
       const isCorrect = i === lesson.correctIndex;
       const isSelected = i === selected;
@@ -175,7 +184,7 @@ const TFLesson: React.FC<TFProps> = ({ lesson, theme, selected, answered, onSele
 
   return (
     <View style={s.tfWrap}>
-      <Markdown style={questionMdStyles(theme)}>{preprocessMath(lesson.question ?? "")}</Markdown>
+      <Markdown style={questionMdStyles(theme)} rules={questionMarkdownRules}>{preprocessMath(lesson.question ?? "")}</Markdown>
       <View style={s.tfRow}>
         {([true, false] as const).map((val) => (
           <TouchableOpacity
@@ -216,7 +225,7 @@ interface OEProps {
 
 const OpenEndedLesson: React.FC<OEProps> = ({ lesson, theme, answer, onChangeAnswer, onSubmit, isLast }) => (
   <View style={s.oeWrap}>
-    <Markdown style={questionMdStyles(theme)}>{preprocessMath(lesson.question ?? "")}</Markdown>
+    <Markdown style={questionMdStyles(theme)} rules={questionMarkdownRules}>{preprocessMath(lesson.question ?? "")}</Markdown>
     <TextInput
       value={answer}
       onChangeText={onChangeAnswer}
@@ -250,6 +259,7 @@ const ChapterContent = () => {
   const [answered, setAnswered] = useState(false);
   const [earned, setEarned] = useState(0);
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
+  const [feedbackPoints, setFeedbackPoints] = useState(0);
   const [paywallVisible, setPaywallVisible] = useState(false);
   const canUseTutor = useAppSelector(selectCanUseTutor);
   const trialExhausted = useAppSelector(selectTrialExhausted);
@@ -347,43 +357,24 @@ const ChapterContent = () => {
 
   const cardOpacity = useSharedValue(1);
   const cardY = useSharedValue(0);
-  const ptsScale = useSharedValue(0);
-  const ptsOpacity = useSharedValue(0);
-  const feedbackY = useSharedValue(80);
-  const shakeX = useSharedValue(0);
+  const feedbackOpacity = useSharedValue(0);
 
   const cardStyle = useAnimatedStyle(() => ({ opacity: cardOpacity.value, transform: [{ translateY: cardY.value }] }));
-  const ptsStyle = useAnimatedStyle(() => ({ transform: [{ scale: ptsScale.value }], opacity: ptsOpacity.value }));
-  const feedbackStyle = useAnimatedStyle(() => ({ transform: [{ translateY: feedbackY.value }] }));
-  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
+  const feedbackStyle = useAnimatedStyle(() => ({ opacity: feedbackOpacity.value }));
 
   const showFeedback = useCallback((type: "correct" | "wrong", pts: number) => {
     setFeedback(type);
+    setFeedbackPoints(pts);
     if (type === "correct") {
       setCorrectCount((c) => c + 1);
       setEarned((p) => p + pts);
-      ptsScale.value = withSequence(
-        withTiming(1.3, { duration: 200 }),
-        withTiming(1.0, { duration: 150 }),
-        withDelay(500, withTiming(0, { duration: 200 })),
-      );
-      ptsOpacity.value = withSequence(
-        withTiming(1, { duration: 150 }),
-        withDelay(650, withTiming(0, { duration: 200 })),
-      );
-    } else {
-      shakeX.value = withSequence(
-        withTiming(-8, { duration: 55 }), withTiming(8, { duration: 55 }),
-        withTiming(-8, { duration: 55 }), withTiming(8, { duration: 55 }),
-        withTiming(0, { duration: 55 }),
-      );
     }
-    feedbackY.value = withSpring(0, { damping: 20, stiffness: 200 });
-  }, []);
+    feedbackOpacity.value = withTiming(1, { duration: 200 });
+  }, [feedbackOpacity]);
 
   const advance = useCallback(() => {
+    feedbackOpacity.value = withTiming(0, { duration: 120 });
     setFeedback(null);
-    feedbackY.value = 80;
     setSelected(null);
     setSelectedTF(null);
     setAnswered(false);
@@ -447,20 +438,8 @@ const ChapterContent = () => {
           },
         });
       }).catch(() => {
-        allowLeaveRef.current = true;
-        router.replace({
-          pathname: "/(protected)/chapter-complete",
-          params: {
-            pathId: pathId ?? "",
-            chapterId: chapterId ?? "",
-            earnedPoints: String(finalEarned),
-            correctCount: String(correctCount),
-            totalQuestions: String(totalQ),
-            totalLessons: String(lessons.length),
-            chapterTitle: chapter?.title ?? "",
-            pathCompleted: "false",
-          },
-        });
+        allowLeaveRef.current = false;
+        Alert.alert("Error", "No se pudo completar el capítulo. Intentá de nuevo.");
       });
       return;
     }
@@ -549,8 +528,7 @@ const ChapterContent = () => {
 
       {/* Lesson card */}
       <View style={s.content}>
-        <Animated.View style={[s.cardWrap, shakeStyle, isReading && { flex: 1, minHeight: 0 }]}>
-          <Animated.View style={[cardStyle, isReading && { flex: 1, minHeight: 0 }]}>
+        <Animated.View style={[cardStyle, isReading && { flex: 1, minHeight: 0 }]}>
             <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }, isReading && { flex: 1, minHeight: 0 }]}>
               {(lesson.type === "theory" || (lesson.type as string) === "example") && (
                 <ReadingLesson
@@ -580,23 +558,17 @@ const ChapterContent = () => {
                 />
               )}
             </View>
-          </Animated.View>
-        </Animated.View>
-
-        {/* Points flash */}
-        <Animated.View style={[s.ptsFlash, ptsStyle]} pointerEvents="none">
-          <AppText variant="bigSubtitle" color={theme.success} weight="bold">
-            +{lesson.points}
-          </AppText>
         </Animated.View>
       </View>
 
-      {/* Feedback banner — questions only */}
       {feedback !== null && isQuestion && (
         <Animated.View
           style={[
-            s.banner,
-            { backgroundColor: feedback === "correct" ? theme.success : theme.danger, paddingBottom: insets.bottom + 12 },
+            s.feedbackBar,
+            {
+              backgroundColor: feedback === "correct" ? theme.success : theme.danger,
+              paddingBottom: insets.bottom + 12,
+            },
             feedbackStyle,
           ]}
         >
@@ -605,7 +577,9 @@ const ChapterContent = () => {
               ? <CheckCircle size={20} color="#fff" />
               : <XCircle size={20} color="#fff" />}
             <AppText variant="smallSubtitle" color="#fff" weight="700">
-              {feedback === "correct" ? "¡Correcto!" : "Incorrecto"}
+              {feedback === "correct"
+                ? `¡Correcto! +${feedbackPoints} pts`
+                : "Incorrecto — revisá la respuesta"}
             </AppText>
           </View>
           <AppButton
@@ -711,16 +685,12 @@ const s = StyleSheet.create({
   progressWrap: { flex: 1 },
   counter: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   content: { flex: 1, justifyContent: "center", paddingHorizontal: 20, paddingVertical: 16, minHeight: 0 },
-  cardWrap: {},
   card: {
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 20,
   },
-  ptsFlash: { position: "absolute", alignSelf: "center", top: "30%" },
-  banner: {
-    position: "absolute",
-    bottom: 0, left: 0, right: 0,
+  feedbackBar: {
     paddingTop: 16,
     paddingHorizontal: 20,
     gap: 12,
@@ -729,6 +699,8 @@ const s = StyleSheet.create({
   bannerBtn: { borderRadius: 14, marginTop: 4 },
   // Reading lesson
   readingWrap: { flex: 1, gap: 14, minHeight: 0 },
+  readingScroll: { flex: 1, minHeight: 0 },
+  readingScrollContent: { paddingBottom: 8 },
   lessonTitle: { marginBottom: 4 },
   continueBtn: { borderRadius: 14, marginTop: 4 },
   // Open-ended

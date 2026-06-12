@@ -27,6 +27,9 @@ export interface User {
   quotaRenewsAt?: string | null;
   trialExhausted?: boolean;
   themeMode?: string;
+  learningStyle?: string | null;
+  coursePreferences?: string | null;
+  learningNotes?: string | null;
 }
 
 export interface UserStats {

@@ -9,6 +9,7 @@ import { setOnline } from '../../application/slices/connectivity.slice';
 import { fetchCatalog } from '../../application/thunks/catalog.thunks';
 import { fetchProfile, fetchStats } from '../../application/thunks/user.thunks';
 import { fetchPaths } from '../../application/thunks/paths.thunks';
+import { syncOfflineQueue } from '../../application/thunks/offline-queue.thunks';
 import { selectIsAuthenticated } from '../../application/selectors/auth.selectors';
 import { selectIsOnline } from '../../application/selectors/connectivity.selectors';
 import { useAppSelector } from '../../application/store/hooks';
@@ -58,6 +59,7 @@ function StartupFetcher() {
       store.dispatch(fetchProfile());
       store.dispatch(fetchStats());
       store.dispatch(fetchPaths());
+      store.dispatch(syncOfflineQueue());
     }
   }, [isAuthenticated, isOnline]);
 

@@ -28,7 +28,13 @@ import { setActiveSummary } from "../../../../application/slices/summaries.slice
 import { useConnectivity } from "../../../hooks/useConnectivity";
 import { Trash2 } from "lucide-react-native";
 import { useSoundEffect } from "../../../../infrastructure/sound/useSoundEffect";
-import { showPlanLimitAlert, showPremiumFeatureAlert } from "../../../../infrastructure/api/plan-error.utils";
+import { showPlanLimitAlert, showPremiumFeatureAlert, isPlanLimitError } from "../../../../infrastructure/api/plan-error.utils";
+import {
+  SUMMARY_PICKER_MIME_TYPES,
+  getSummaryFileValidationMessage,
+  getSummaryUploadErrorMessage,
+  resolveSummaryFileMimeType,
+} from "../../../utils/summary-file.utils";
 import {
   selectCanUseSummary,
   selectTrialExhausted,
@@ -62,10 +68,17 @@ const Summary: React.FC = () => {
   const [inputHeight, setInputHeight] = useState(130);
   const [copied, setCopied] = useState(false);
   const [showOutput, setShowOutput] = useState(false);
+  const [processingFileName, setProcessingFileName] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchSummaries());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setProcessingFileName(null);
+    }
+  }, [isLoading]);
 
   useEffect(() => {
     if (prevLoadingRef.current && !isLoading && activeSummary) {
@@ -94,6 +107,7 @@ const Summary: React.FC = () => {
     setText("");
     setInputHeight(130);
     setShowOutput(false);
+    setProcessingFileName(null);
   }, []);
 
   const handleCopy = useCallback(() => {
@@ -102,29 +116,50 @@ const Summary: React.FC = () => {
   }, []);
 
   const handleFilePick = useCallback(async () => {
+    if (!isOnline) {
+      Alert.alert('Sin conexión', 'Necesitás internet para subir un archivo.');
+      return;
+    }
+    if (!canUseSummary) {
+      showPremiumFeatureAlert("generar resúmenes", summaryAlertOptions);
+      return;
+    }
+
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'],
+        type: [...SUMMARY_PICKER_MIME_TYPES],
         copyToCacheDirectory: true,
+        multiple: false,
       });
       if (result.canceled || !result.assets[0]) return;
-      if (!canUseSummary) {
-        showPremiumFeatureAlert("generar resúmenes", summaryAlertOptions);
+
+      const asset = result.assets[0];
+      const validationMessage = getSummaryFileValidationMessage(asset.name);
+      if (validationMessage) {
+        Alert.alert('Archivo no compatible', validationMessage);
         return;
       }
-      const asset = result.assets[0];
+
+      const mimeType = resolveSummaryFileMimeType(asset.name, asset.mimeType);
+      setCopied(false);
       setShowOutput(false);
+      setProcessingFileName(asset.name);
+
       try {
         await dispatch(
-          generateSummaryFromFile({ uri: asset.uri, name: asset.name, type: asset.mimeType ?? 'application/octet-stream' }),
+          generateSummaryFromFile({ uri: asset.uri, name: asset.name, type: mimeType }),
         ).unwrap();
       } catch (err) {
-        showPlanLimitAlert(err, "generar resúmenes", { summaryLimit: summaryRequestLimit });
+        if (isPlanLimitError(err)) {
+          showPlanLimitAlert(err, "generar resúmenes", { summaryLimit: summaryRequestLimit });
+        } else {
+          Alert.alert('Error al procesar', getSummaryUploadErrorMessage(err));
+        }
       }
     } catch {
-      Alert.alert('Error', 'No se pudo cargar el archivo.');
+      Alert.alert('Error', 'No se pudo abrir el selector de archivos.');
     }
-  }, [dispatch, canUseSummary, summaryAlertOptions, summaryRequestLimit]);
+  }, [dispatch, canUseSummary, summaryAlertOptions, summaryRequestLimit, isOnline]);
 
   const handleExport = useCallback(
     async (format: "pdf" | "txt" | "docx") => {
@@ -318,6 +353,7 @@ const Summary: React.FC = () => {
                 icon={<Paperclip size={16} color={theme.textMuted} />}
                 size="small"
                 onPress={handleFilePick}
+                disabled={!isOnline || !canUseSummary || isLoading}
               />
               <AppText variant="smallSubtitle" weight="600">
                 Tu texto
@@ -330,6 +366,14 @@ const Summary: React.FC = () => {
             )}
           </View>
           <View style={styles.inputHeaderSpacer} />
+          {processingFileName && (
+            <View style={[styles.attachedFileRow, { backgroundColor: `${theme.primary}12`, borderColor: `${theme.primary}30` }]}>
+              <FileText size={14} color={theme.primary} />
+              <AppText variant="verySmall" color={theme.primary} weight="600" numberOfLines={1} style={styles.attachedFileName}>
+                {processingFileName}
+              </AppText>
+            </View>
+          )}
           <TextInput
             multiline
             scrollEnabled={false}
@@ -366,7 +410,9 @@ const Summary: React.FC = () => {
               <View style={styles.loadingOutputRow}>
                 <ActivityIndicator size="small" color={theme.primary} />
                 <AppText variant="smallParagraph" muted style={styles.loadingOutputText}>
-                  Generando resumen...
+                  {processingFileName
+                    ? `Procesando ${processingFileName}…`
+                    : 'Generando resumen…'}
                 </AppText>
               </View>
             </GlassCard>
@@ -522,6 +568,19 @@ const styles = StyleSheet.create({
   },
   inputHeaderSpacer: {
     height: 12,
+  },
+  attachedFileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  attachedFileName: {
+    flex: 1,
   },
   buttonSpacer: {
     height: 14,

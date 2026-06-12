@@ -17,17 +17,19 @@ export default function ProtectedLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(learning)/path-generating" />
-        <Stack.Screen name="(learning)/all-paths" />
-        <Stack.Screen name="(learning)/path-detail" />
-        <Stack.Screen name="(learning)/chapter-content" />
-        <Stack.Screen name="(learning)/chapter-complete" />
-        <Stack.Screen name="(learning)/path-complete" />
-        <Stack.Screen name="(learning)/exam-result" />
-        <Stack.Screen name="(profile)/profile" />
-      </Stack>
+      <View style={{ flex: 1 }}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="(learning)/path-generating" />
+          <Stack.Screen name="(learning)/all-paths" />
+          <Stack.Screen name="(learning)/path-detail" />
+          <Stack.Screen name="(learning)/chapter-content" />
+          <Stack.Screen name="(learning)/chapter-complete" />
+          <Stack.Screen name="(learning)/path-complete" />
+          <Stack.Screen name="(learning)/exam-result" />
+          <Stack.Screen name="(profile)/profile" />
+        </Stack>
+      </View>
       <OfflineBanner />
     </View>
   );

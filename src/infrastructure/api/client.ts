@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { API_BASE_URL } from '../../config/environment/api.config';
 import { applyAuthInterceptor } from './interceptors/auth.interceptor';
+import { applyMultipartInterceptor } from './interceptors/multipart.interceptor';
 import { applyResponseInterceptor } from './interceptors/response.interceptor';
 import { applyRefreshInterceptor } from './interceptors/refresh.interceptor';
 
@@ -13,6 +14,7 @@ const apiClient: AxiosInstance = axios.create({
 });
 
 applyAuthInterceptor(apiClient);
+applyMultipartInterceptor(apiClient);
 applyResponseInterceptor(apiClient);
 applyRefreshInterceptor(apiClient);
 

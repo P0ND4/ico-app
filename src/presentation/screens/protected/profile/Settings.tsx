@@ -7,19 +7,25 @@ import {
   StyleSheet,
   Linking,
   Alert,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { ChevronLeft, Bell, Info, FileText, Shield, Mail, Sun, Moon, Monitor } from "lucide-react-native";
+import { ChevronLeft, Bell, Info, FileText, Shield, Mail, Sun, Moon, Monitor, GraduationCap, X } from "lucide-react-native";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppContainer from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
+import AppButton from "../../../components/ui/buttons/AppButton";
+import AppInput from "../../../components/ui/inputs/AppInput";
 import GlassCard from "../../../components/ui/cards/GlassCard";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { scheduleStudyReminder, cancelStudyReminder } from "../../../../infrastructure/notifications/study-reminder";
 import { useAppDispatch, useAppSelector } from "../../../../application/store/hooks";
 import { setThemeMode, type ThemeMode } from "../../../../application/slices/user.slice";
-import { selectThemeMode } from "../../../../application/selectors/user.selectors";
+import { selectThemeMode, selectUserProfile } from "../../../../application/selectors/user.selectors";
 import { updateProfile } from "../../../../application/thunks/user.thunks";
 
 const STUDY_REMINDER_KEY = "ico_study_reminder_enabled";
@@ -32,15 +38,49 @@ const THEME_OPTIONS: { key: ThemeMode; label: string; Icon: React.ComponentType<
 
 const Settings = () => {
   const theme = useThemeColors();
+  const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const themeMode = useAppSelector(selectThemeMode) as ThemeMode;
+  const profile = useAppSelector(selectUserProfile);
   const [studyReminder, setStudyReminder] = useState(false);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [learningStyle, setLearningStyle] = useState("");
+  const [coursePreferences, setCoursePreferences] = useState("");
+  const [learningNotes, setLearningNotes] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STUDY_REMINDER_KEY).then((v) => {
       if (v === "true") setStudyReminder(true);
     });
   }, []);
+
+  useEffect(() => {
+    setLearningStyle(profile?.learningStyle ?? "");
+    setCoursePreferences(profile?.coursePreferences ?? "");
+    setLearningNotes(profile?.learningNotes ?? "");
+  }, [profile?.learningStyle, profile?.coursePreferences, profile?.learningNotes]);
+
+  const profileComplete =
+    learningStyle.trim().length > 0 ||
+    coursePreferences.trim().length > 0 ||
+    learningNotes.trim().length > 0;
+
+  const handleSaveLearnerProfile = useCallback(async () => {
+    setSavingProfile(true);
+    try {
+      await dispatch(updateProfile({
+        learningStyle: learningStyle.trim() || null,
+        coursePreferences: coursePreferences.trim() || null,
+        learningNotes: learningNotes.trim() || null,
+      })).unwrap();
+      setProfileModalVisible(false);
+    } catch {
+      Alert.alert("Error", "No se pudo guardar tu perfil. Intentá de nuevo.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }, [dispatch, learningStyle, coursePreferences, learningNotes]);
 
   const toggleReminder = useCallback(async (value: boolean) => {
     if (value) {
@@ -78,6 +118,38 @@ const Settings = () => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+        {/* Learner profile */}
+        <GlassCard padding={20} style={s.section}>
+          <View style={s.sectionHeader}>
+            <GraduationCap size={16} color={theme.primary} />
+            <AppText variant="smallSubtitle" weight="600" style={s.sectionTitle}>
+              Llena tu perfil
+            </AppText>
+            {profileComplete && (
+              <View style={[s.completeChip, { backgroundColor: `${theme.success}18` }]}>
+                <AppText variant="verySmall" color={theme.success} weight="700">
+                  Completado
+                </AppText>
+              </View>
+            )}
+          </View>
+          <TouchableOpacity
+            style={[s.row, { borderTopColor: theme.border }]}
+            onPress={() => setProfileModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <View style={s.rowInfo}>
+              <AppText variant="smallParagraph" weight="500">
+                Preferencias de aprendizaje
+              </AppText>
+              <AppText variant="verySmall" muted>
+                Personalizá cursos, tutor y resúmenes
+              </AppText>
+            </View>
+            <ChevronLeft size={16} color={theme.textMuted} style={s.chevronRight} />
+          </TouchableOpacity>
+        </GlassCard>
+
         {/* Notifications */}
         <GlassCard padding={20} style={s.section}>
           <View style={s.sectionHeader}>
@@ -201,6 +273,100 @@ const Settings = () => {
           </TouchableOpacity>
         </GlassCard>
       </ScrollView>
+
+      <Modal
+        visible={profileModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setProfileModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={[s.modalScreen, { backgroundColor: theme.background }]}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={[s.modalHeader, { borderBottomColor: theme.border, paddingTop: insets.top + 8 }]}>
+            <View style={s.modalHeaderTitle}>
+              <GraduationCap size={20} color={theme.primary} />
+              <AppText variant="subtitle" weight="700">Llena tu perfil</AppText>
+            </View>
+            <TouchableOpacity
+              onPress={() => setProfileModalVisible(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={20} color={theme.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={s.modalScroll}
+            contentContainerStyle={[s.modalScrollContent, { paddingBottom: insets.bottom + 24 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <AppText variant="smallParagraph" muted style={s.modalIntro}>
+              Ayudanos a personalizar tus cursos, tutor y resúmenes.
+            </AppText>
+
+            <View style={s.fieldGroup}>
+              <AppText variant="verySmall" weight="600" style={s.fieldLabel}>
+                ¿Cómo aprendés mejor?
+              </AppText>
+              <AppInput
+                value={learningStyle}
+                onChangeText={setLearningStyle}
+                placeholder="Ej: con ejemplos prácticos, paso a paso, visual..."
+                placeholderTextColor={theme.textMuted}
+                multiline
+                maxLength={500}
+                style={[s.textArea, { color: theme.textPrimary }]}
+                stylesContainer={[s.inputContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              />
+            </View>
+
+            <View style={s.fieldGroup}>
+              <AppText variant="verySmall" weight="600" style={s.fieldLabel}>
+                ¿Qué te gusta de un curso?
+              </AppText>
+              <AppInput
+                value={coursePreferences}
+                onChangeText={setCoursePreferences}
+                placeholder="Ej: capítulos cortos, muchos ejercicios, explicaciones simples..."
+                placeholderTextColor={theme.textMuted}
+                multiline
+                maxLength={500}
+                style={[s.textArea, { color: theme.textPrimary }]}
+                stylesContainer={[s.inputContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              />
+            </View>
+
+            <View style={s.fieldGroup}>
+              <AppText variant="verySmall" weight="600" style={s.fieldLabel}>
+                Algo más que debamos saber
+              </AppText>
+              <AppInput
+                value={learningNotes}
+                onChangeText={setLearningNotes}
+                placeholder="Opcional: objetivos, nivel, temas que te cuestan..."
+                placeholderTextColor={theme.textMuted}
+                multiline
+                maxLength={500}
+                style={[s.textArea, { color: theme.textPrimary }]}
+                stylesContainer={[s.inputContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              />
+            </View>
+
+            <AppButton
+              variant="primary"
+              widthFull
+              loading={savingProfile}
+              onPress={handleSaveLearnerProfile}
+              style={s.saveBtn}
+            >
+              <AppText color="#fff" weight="600">Guardar perfil</AppText>
+            </AppButton>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </Modal>
     </AppContainer>
   );
 };
@@ -226,6 +392,40 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { flex: 1 },
+  completeChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  modalScreen: { flex: 1 },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalHeaderTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
+  modalScroll: { flex: 1 },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 20 },
+  modalIntro: { marginBottom: 20 },
+  fieldGroup: { gap: 6, marginBottom: 14 },
+  fieldLabel: { marginLeft: 2 },
+  inputContainer: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    alignItems: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  textArea: {
+    minHeight: 88,
+    maxHeight: 140,
+    textAlignVertical: "top",
+    width: "100%",
+  },
+  saveBtn: { marginTop: 8, borderRadius: 14 },
   row: {
     flexDirection: "row",
     alignItems: "center",

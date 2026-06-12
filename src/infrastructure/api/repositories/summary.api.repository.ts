@@ -22,7 +22,7 @@ export const summaryApiRepository: SummaryRepository = {
     const formData = new FormData();
     formData.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
     const { data } = await apiClient.post<Summary>('/v1/summaries/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120_000,
     });
     return data;
   },

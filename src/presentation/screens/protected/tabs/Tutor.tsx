@@ -394,6 +394,7 @@ const Tutor: React.FC = () => {
           style={[styles.messagesArea, { backgroundColor: theme.background }]}
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
         >
           {messages.length === 0 && !isLoading && (
             <ChatBubble
