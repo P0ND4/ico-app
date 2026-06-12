@@ -1,0 +1,168 @@
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { LearningPath, Chapter, Lesson } from '../../domain/entities/path.entity';
+import {
+  fetchPaths,
+  generatePath,
+  fetchPathWithChapters,
+  fetchChapterWithLessons,
+  fetchPathJob,
+  completeChapter,
+  updatePath,
+  deletePath,
+} from '../thunks/paths.thunks';
+
+export interface PathsState {
+  paths: Record<string, LearningPath>;
+  pathIds: string[];
+  chapters: Record<string, Chapter>;
+  lessons: Record<string, Lesson[]>;
+  generatingPathId: string | null;
+  status: 'idle' | 'loading' | 'generating' | 'error';
+  error: string | null;
+}
+
+const initialState: PathsState = {
+  paths: {},
+  pathIds: [],
+  chapters: {},
+  lessons: {},
+  generatingPathId: null,
+  status: 'idle',
+  error: null,
+};
+
+const pathsSlice = createSlice({
+  name: 'paths',
+  initialState,
+  reducers: {
+    optimisticCompleteChapter: (
+      state,
+      action: PayloadAction<{ chapterId: string; earnedXp: number }>,
+    ) => {
+      const chapter = state.chapters[action.payload.chapterId];
+      if (chapter) {
+        chapter.status = 'completed';
+        chapter.earnedXp = action.payload.earnedXp;
+        chapter.completedAt = new Date().toISOString();
+      }
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      // fetchPaths
+      .addCase(fetchPaths.pending, (state) => { state.status = 'loading'; })
+      .addCase(fetchPaths.fulfilled, (state, action) => {
+        state.status = 'idle';
+        state.paths = {};
+        state.pathIds = [];
+        for (const path of action.payload) {
+          state.paths[path.id] = path;
+          state.pathIds.push(path.id);
+        }
+      })
+      .addCase(fetchPaths.rejected, (state, action) => {
+        state.status = 'error';
+        state.error = action.error.message ?? 'Failed to fetch paths';
+      })
+      // generatePath
+      .addCase(generatePath.pending, (state) => {
+        state.status = 'generating';
+        state.generatingPathId = null;
+      })
+      .addCase(generatePath.fulfilled, (state, action) => {
+        const job = action.payload;
+        if (job.status === 'completed') {
+          state.status = 'idle';
+          state.generatingPathId = job.pathId;
+        }
+        // status === 'processing': keep 'generating', poll fetchPathJob for progress
+      })
+      .addCase(generatePath.rejected, (state) => { state.status = 'error'; })
+      // fetchPathJob — poll until job completes
+      .addCase(fetchPathJob.fulfilled, (state, action) => {
+        const job = action.payload;
+        if (job.status === 'completed') {
+          state.status = 'idle';
+          state.generatingPathId = job.pathId;
+        } else if (job.status === 'failed') {
+          state.status = 'error';
+          state.generatingPathId = null;
+        }
+        // pending: leave status as 'generating', keep polling
+      })
+      // fetchPathWithChapters
+      .addCase(fetchPathWithChapters.fulfilled, (state, action) => {
+        const path = action.payload;
+        state.paths[path.id] = path;
+        if (!state.pathIds.includes(path.id)) state.pathIds.push(path.id);
+        if (path.chapters) {
+          for (const chapter of path.chapters) {
+            const { lessons: _l, ...chapterWithoutLessons } = chapter;
+            // Backend ChapterSummaryDto does not include pathId — inject it here
+            state.chapters[chapter.id] = { ...chapterWithoutLessons, pathId: path.id };
+          }
+        }
+      })
+      // fetchChapterWithLessons
+      .addCase(fetchChapterWithLessons.fulfilled, (state, action) => {
+        const chapter = action.payload;
+        const { lessons, ...chapterWithoutLessons } = chapter;
+        state.chapters[chapter.id] = chapterWithoutLessons;
+        if (lessons) {
+          state.lessons[chapter.id] = lessons;
+        }
+      })
+      // completeChapter
+      .addCase(completeChapter.fulfilled, (state, action) => {
+        const { chapter, nextChapterUnlocked, pathCompleted } = action.payload;
+        const previousChapter = state.chapters[chapter.id];
+        const wasAlreadyCompleted = previousChapter?.status === 'completed';
+        const { lessons: _l2, ...chapterWithoutLessons } = chapter;
+        state.chapters[chapter.id] = chapterWithoutLessons;
+        const pathId = chapter.pathId ?? previousChapter?.pathId;
+        const path = pathId ? state.paths[pathId] : Object.values(state.paths).find(p =>
+          Object.values(state.chapters).some(c => c.id === chapter.id && c.pathId === p.id)
+        );
+        if (path && !wasAlreadyCompleted) {
+          path.completedChapterCount = (path.completedChapterCount ?? 0) + 1;
+          path.earnedXp = (path.earnedXp ?? 0) + (chapter.earnedXp ?? 0);
+          if (pathCompleted) path.status = 'completed';
+        }
+        if (nextChapterUnlocked) {
+          // find next chapter and unlock it
+          const chaptersList = Object.values(state.chapters)
+            .filter(c => c.pathId === chapter.pathId)
+            .sort((a, b) => a.order - b.order);
+          const currentIndex = chaptersList.findIndex(c => c.id === chapter.id);
+          if (currentIndex >= 0 && currentIndex + 1 < chaptersList.length) {
+            const nextChapter = chaptersList[currentIndex + 1];
+            if (nextChapter) {
+              state.chapters[nextChapter.id] = { ...nextChapter, status: 'current' };
+            }
+          }
+        }
+      })
+      // updatePath
+      .addCase(updatePath.fulfilled, (state, action) => {
+        const path = action.payload;
+        state.paths[path.id] = path;
+      })
+      // deletePath
+      .addCase(deletePath.fulfilled, (state, action) => {
+        const id = action.payload;
+        delete state.paths[id];
+        state.pathIds = state.pathIds.filter(pid => pid !== id);
+        // clean up chapters and lessons for this path
+        const chapterIds = Object.keys(state.chapters).filter(
+          cid => state.chapters[cid]?.pathId === id,
+        );
+        for (const cid of chapterIds) {
+          delete state.chapters[cid];
+          delete state.lessons[cid];
+        }
+      });
+  },
+});
+
+export const { optimisticCompleteChapter } = pathsSlice.actions;
+export default pathsSlice.reducer;

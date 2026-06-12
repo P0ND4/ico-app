@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/presentation/assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./src/presentation/assets/splash-icon.png",
       "resizeMode": "contain",
@@ -31,7 +31,8 @@
         {
           "root": "./src/presentation/navigation"
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

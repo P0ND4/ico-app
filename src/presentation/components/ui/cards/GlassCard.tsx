@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
 import { View, StyleSheet } from "react-native";
-import type { ViewStyle } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 
 export interface GlassCardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   padding?: number;
   variant?: "default" | "accent";
 }

@@ -1,0 +1,58 @@
+diff --git a/android/src/main/java/io/invertase/googlemobileads/ReactNativeGoogleMobileAdsPackage.kt b/android/src/main/java/io/invertase/googlemobileads/ReactNativeGoogleMobileAdsPackage.kt
+index be8102bfd6bab21cf474833ca1212f5c2effdf28..d6e38f4d8d080ffa2cc70f41dd3fec1205e32346 100644
+--- a/android/src/main/java/io/invertase/googlemobileads/ReactNativeGoogleMobileAdsPackage.kt
++++ b/android/src/main/java/io/invertase/googlemobileads/ReactNativeGoogleMobileAdsPackage.kt
+@@ -70,7 +70,7 @@ class ReactNativeGoogleMobileAdsPackage : TurboReactPackage() {
+           false,
+           false,
+           false,
+-          false,
++          isTurboModule,
+         )
+       moduleInfos[ReactNativeGoogleMobileAdsConsentModule.NAME] =
+         ReactModuleInfo(
+@@ -79,7 +79,7 @@ class ReactNativeGoogleMobileAdsPackage : TurboReactPackage() {
+           false,
+           false,
+           false,
+-          false,
++          isTurboModule,
+         )
+       moduleInfos[ReactNativeGoogleMobileAdsAppOpenModule.NAME] =
+         ReactModuleInfo(
+@@ -88,7 +88,7 @@ class ReactNativeGoogleMobileAdsPackage : TurboReactPackage() {
+           false,
+           false,
+           false,
+-          false,
++          isTurboModule,
+         )
+       moduleInfos[ReactNativeGoogleMobileAdsInterstitialModule.NAME] =
+       ReactModuleInfo(
+@@ -97,7 +97,7 @@ class ReactNativeGoogleMobileAdsPackage : TurboReactPackage() {
+         false,
+         false,
+         false,
+-        false,
++        isTurboModule,
+       )
+       moduleInfos[ReactNativeGoogleMobileAdsRewardedModule.NAME] =
+         ReactModuleInfo(
+@@ -106,7 +106,7 @@ class ReactNativeGoogleMobileAdsPackage : TurboReactPackage() {
+           false,
+           false,
+           false,
+-          false,
++          isTurboModule,
+         )
+       moduleInfos[ReactNativeGoogleMobileAdsRewardedInterstitialModule.NAME] =
+         ReactModuleInfo(
+@@ -115,7 +115,7 @@ class ReactNativeGoogleMobileAdsPackage : TurboReactPackage() {
+           false,
+           false,
+           false,
+-          false,
++          isTurboModule,
+         )
+       moduleInfos[ReactNativeGoogleMobileAdsNativeModule.NAME] =
+         ReactModuleInfo(
