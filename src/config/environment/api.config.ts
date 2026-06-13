@@ -5,8 +5,8 @@ const ENV = (Constants.expoConfig?.extra?.env as string) ?? 'development';
 
 const BASE_URLS: Record<string, string> = {
   development: resolveDevelopmentApiUrl(),
-  staging: 'https://staging.ico.app/api',
-  production: 'https://api.ico.app/api',
+  staging: 'https://api.ico-app.org/api',
+  production: 'https://api.ico-app.org/api',
 };
 
 function resolveDevelopmentApiUrl(): string {
