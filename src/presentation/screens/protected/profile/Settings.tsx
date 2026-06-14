@@ -250,7 +250,7 @@ const Settings = () => {
 
           <TouchableOpacity
             style={[s.row, { borderTopColor: theme.border }]}
-            onPress={() => Linking.openURL("https://ico.app/terms")}
+            onPress={() => Linking.openURL("https://sites.google.com/view/ico-terms-and-conditions/inicio")}
             activeOpacity={0.7}
           >
             <View style={s.rowWithIcon}>
@@ -262,7 +262,7 @@ const Settings = () => {
 
           <TouchableOpacity
             style={[s.row, { borderTopColor: theme.border }]}
-            onPress={() => Linking.openURL("https://ico.app/privacy")}
+            onPress={() => Linking.openURL("https://sites.google.com/view/ico-privacy-policy/inicio")}
             activeOpacity={0.7}
           >
             <View style={s.rowWithIcon}>
