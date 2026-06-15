@@ -25,7 +25,7 @@ import { selectLessonsByChapterId, selectChapterById } from "../../../../applica
 import { selectCanUseTutor, selectTrialExhausted, selectTutorRequestLimit } from "../../../../application/selectors/user.selectors";
 import { showPlanLimitAlert, showPremiumFeatureAlert } from "../../../../infrastructure/api/plan-error.utils";
 import ChatBubble from "../../../components/ui/cards/ChatBubble";
-import AiMarkdownView from "../../../components/ui/typography/AiMarkdownView";
+import RichMarkdownView from "../../../components/ui/typography/RichMarkdownView";
 import { preprocessMath } from "../../../utils/math.utils";
 import { createAiMarkdownRules } from "../../../utils/markdown-display.rules";
 import PaywallModal from "../../shared/PaywallModal";
@@ -118,7 +118,7 @@ const ReadingLesson: React.FC<ReadingLessonProps> = ({ lesson, theme, onContinue
       nestedScrollEnabled
       keyboardShouldPersistTaps="handled"
     >
-      <AiMarkdownView content={lesson.content} fontSize={14} passThroughScroll />
+      <RichMarkdownView content={lesson.content} fontSize={14} />
     </ScrollView>
     <AppButton variant="primary" widthFull style={s.continueBtn} onPress={onContinue}>
       <AppText color="#fff" weight="600">{label}</AppText>

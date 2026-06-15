@@ -13,7 +13,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { TextStyle, ViewStyle } from "react-native";
 import { FileText, Wand2, Lightbulb, Copy, Check, HelpCircle, Paperclip, X, AlertCircle } from "lucide-react-native";
-import AiMarkdownView from "../../../components/ui/typography/AiMarkdownView";
+import RichMarkdownView from "../../../components/ui/typography/RichMarkdownView";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import AppContainer from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
@@ -454,7 +454,7 @@ const Summary: React.FC = () => {
                 </View>
               </View>
 
-              <AiMarkdownView content={summaryText} fontSize={14} passThroughScroll />
+              <RichMarkdownView content={summaryText} fontSize={14} />
 
               {/* Reflection CTA */}
               <View style={[reflectionBorderStyle, styles.reflectionCta]}>

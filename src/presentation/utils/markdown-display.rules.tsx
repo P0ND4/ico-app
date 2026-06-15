@@ -184,19 +184,53 @@ const fenceScrollStyle = StyleSheet.create({
     maxWidth: "100%",
     marginVertical: 4,
   },
+  line: {
+    flexShrink: 0,
+  },
 });
 
-export function createMarkdownFenceRule() {
-  return (node: { key: string; content: string }, _c: unknown, _p: unknown, mdStyles: { fence: object }) => (
+function CodeFenceBlock({
+  nodeKey,
+  content,
+  fenceStyle,
+}: {
+  nodeKey: string;
+  content: string;
+  fenceStyle: object;
+}) {
+  const lines = content.split("\n");
+
+  return (
     <ScrollView
-      key={node.key}
+      key={nodeKey}
       horizontal
       nestedScrollEnabled
       style={fenceScrollStyle.scroll}
       showsHorizontalScrollIndicator
     >
-      <Text style={mdStyles.fence}>{node.content}</Text>
+      <View>
+        {lines.map((line, lineIndex) => (
+          <Text
+            key={`${nodeKey}-${lineIndex}`}
+            style={[fenceStyle, fenceScrollStyle.line]}
+          >
+            {line || " "}
+          </Text>
+        ))}
+      </View>
     </ScrollView>
+  );
+}
+
+export function createMarkdownFenceRule() {
+  return (node: { key: string; content: string }, _c: unknown, _p: unknown, mdStyles: { fence: object }) => (
+    <CodeFenceBlock nodeKey={node.key} content={node.content} fenceStyle={mdStyles.fence} />
+  );
+}
+
+export function createMarkdownCodeBlockRule() {
+  return (node: { key: string; content: string }, _c: unknown, _p: unknown, mdStyles: { code_block: object }) => (
+    <CodeFenceBlock nodeKey={node.key} content={node.content} fenceStyle={mdStyles.code_block} />
   );
 }
 
@@ -206,6 +240,7 @@ export function createAiMarkdownRules(
 ): RenderRules {
   return {
     fence: createMarkdownFenceRule(),
+    code_block: createMarkdownCodeBlockRule(),
     image: createMarkdownImageRule(options?.indicatorColor),
     ...overrides,
   };
