@@ -101,6 +101,20 @@ export function getAuthErrorMessage(err: unknown): string {
   return 'No se pudo iniciar sesión con Google. Intentá de nuevo.';
 }
 
-export function toApiRejection(err: unknown): ParsedApiError {
-  return parseApiError(err);
+export function getDeleteAccountErrorMessage(err: unknown, isGuest: boolean): string {
+  const parsed = parseApiError(err);
+
+  if (parsed.status === 403) {
+    return isGuest
+      ? 'No se pudieron borrar tus datos de invitado. Intentá de nuevo más tarde.'
+      : 'No tenés permiso para eliminar esta cuenta.';
+  }
+
+  if (parsed.message && parsed.message !== 'Error desconocido' && !parsed.message.match(/status code \d{3}/i)) {
+    return parsed.message;
+  }
+
+  return isGuest
+    ? 'No se pudieron borrar tus datos de invitado. Intentá de nuevo.'
+    : 'No se pudo eliminar la cuenta. Intentá de nuevo.';
 }

@@ -30,7 +30,7 @@ import { selectUserProfile, selectUserStats, selectUserBadge } from "../../../..
 import { selectIsGuest } from "../../../../application/selectors/auth.selectors";
 import { updateProfile, deleteAccount } from "../../../../application/thunks/user.thunks";
 import { logout, linkGoogle, linkApple } from "../../../../application/thunks/auth.thunks";
-import { getLinkAccountErrorMessage, isProviderAlreadyLinkedError } from "../../../../infrastructure/api/auth-error.utils";
+import { getDeleteAccountErrorMessage, getLinkAccountErrorMessage, isProviderAlreadyLinkedError } from "../../../../infrastructure/api/auth-error.utils";
 import {
   configureGoogleSignIn,
   getGoogleDeveloperErrorMessage,
@@ -89,7 +89,12 @@ const Profile = () => {
   }, [dispatch]);
 
   const handleDeleteAccount = useCallback(() => {
-    Alert.alert("Eliminar cuenta", "Esta acción es permanente e irreversible. ¿Estás seguro?", [
+    const title = isGuest ? "Eliminar datos de invitado" : "Eliminar cuenta";
+    const message = isGuest
+      ? "Se borrarán permanentemente tus datos de invitado en el servidor. Esta acción es irreversible. ¿Estás seguro?"
+      : "Esta acción es permanente e irreversible. ¿Estás seguro?";
+
+    Alert.alert(title, message, [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar",
@@ -97,13 +102,13 @@ const Profile = () => {
         onPress: async () => {
           try {
             await dispatch(deleteAccount()).unwrap();
-          } catch {
-            Alert.alert("Error", "No se pudo eliminar la cuenta. Intentá de nuevo.");
+          } catch (err) {
+            Alert.alert("Error", getDeleteAccountErrorMessage(err, isGuest));
           }
         },
       },
     ]);
-  }, [dispatch]);
+  }, [dispatch, isGuest]);
 
   const handleLinkGoogle = useCallback(async () => {
     if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
@@ -358,7 +363,7 @@ const Profile = () => {
           <TouchableOpacity onPress={handleDeleteAccount} activeOpacity={0.7} style={s.deleteLink}>
             <Trash2 size={14} color={theme.danger} />
             <AppText variant="smallParagraph" color={theme.danger} style={s.deleteLinkText}>
-              Eliminar cuenta
+              {isGuest ? "Eliminar datos de invitado" : "Eliminar cuenta"}
             </AppText>
           </TouchableOpacity>
         </GlassCard>

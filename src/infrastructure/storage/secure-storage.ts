@@ -49,6 +49,9 @@ export const secureStorage = {
       SecureStore.deleteItemAsync(KEYS.REFRESH_TOKEN),
     ]),
 
+  clearGuestDeviceId: (): Promise<void> =>
+    SecureStore.deleteItemAsync(KEYS.GUEST_DEVICE_ID),
+
   getOrCreateGuestDeviceId: async (): Promise<string> => {
     // Prefer a platform-stable ID so reinstalls reuse the same account
     const stableId = await getStableDeviceId();
