@@ -1,5 +1,8 @@
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { marked } from 'marked';
-import { preprocessMath } from '../../presentation/utils/math.utils';
+import { normalizeMarkdownContent } from '../../presentation/utils/markdown-html.utils';
+import { preprocessMarkdownMathDisplay } from '../../presentation/utils/math.utils';
 
 marked.setOptions({
   gfm: true,
@@ -8,8 +11,8 @@ marked.setOptions({
 
 export function markdownToHtml(text: string | null | undefined): string {
   if (!text?.trim()) return '';
-  const processed = preprocessMath(text);
-  return marked.parse(processed) as string;
+  const normalized = preprocessMarkdownMathDisplay(normalizeMarkdownContent(text));
+  return marked.parse(normalized) as string;
 }
 
 export const PDF_MARKDOWN_STYLES = `
@@ -71,4 +74,42 @@ export const PDF_MARKDOWN_STYLES = `
   .md-content tr:nth-child(even) td { background: #f9fafb; }
   .md-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
   .md-content a { color: #059669; text-decoration: underline; }
+  .md-content img { max-width: 100%; height: auto; margin: 8px 0; border-radius: 6px; }
 `;
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+export function buildPdfDocumentHtml(title: string, bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${escapeHtml(title)}</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 32px 24px; color: #1a202c; line-height: 1.6; }
+  h1.doc-title { color: #059669; border-bottom: 2px solid #059669; padding-bottom: 8px; font-size: 22px; margin-bottom: 24px; }
+  ${PDF_MARKDOWN_STYLES}
+</style>
+</head>
+<body>
+  <h1 class="doc-title">${escapeHtml(title)}</h1>
+  ${bodyHtml}
+</body>
+</html>`;
+}
+
+export async function printMarkdownHtml(title: string, bodyHtml: string): Promise<void> {
+  const html = buildPdfDocumentHtml(title, bodyHtml);
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  const canShare = await Sharing.isAvailableAsync();
+  if (canShare) {
+    await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
+  }
+}

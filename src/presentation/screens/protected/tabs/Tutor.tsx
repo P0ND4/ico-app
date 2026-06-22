@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Alert, Animated, Modal, Dimensions } from "react-native";
 import type { ViewStyle } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
+import { exportConversationAsPdf } from "../../../../infrastructure/export/tutor-pdf";
 import { Bot, Send, AlertCircle, Download, Trash2, WifiOff, Menu, X, Plus, MessageSquare, Pencil, Check } from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import AppContainer from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
@@ -26,6 +26,7 @@ import {
 } from "../../../../application/selectors/tutor.selectors";
 import { setActiveConversation } from "../../../../application/slices/tutor.slice";
 import { useConnectivity } from "../../../hooks/useConnectivity";
+import { useAppSessionContinuity } from "../../../hooks/useAppSessionContinuity";
 import { useSoundEffect } from "../../../../infrastructure/sound/useSoundEffect";
 import { showPlanLimitAlert, showPremiumFeatureAlert } from "../../../../infrastructure/api/plan-error.utils";
 import {
@@ -66,6 +67,7 @@ const Tutor: React.FC = () => {
   const renameOriginalRef = useRef("");
   const isCommittingRenameRef = useRef(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const { shouldResetTutorSession, markTutorSessionHandled } = useAppSessionContinuity();
 
   const scrollToBottom = useCallback((animated = true) => {
     requestAnimationFrame(() => {
@@ -106,18 +108,17 @@ const Tutor: React.FC = () => {
   }, [dispatch, closeHistory]);
 
   useEffect(() => {
-    dispatch(fetchConversations()).then((result) => {
-      if (!fetchConversations.fulfilled.match(result)) return;
-      const list = result.payload;
-      if (list.length === 0 || activeId) return;
-      const first = list[0];
-      if (first) {
-        dispatch(setActiveConversation(first.id));
-        dispatch(fetchMessages(first.id));
-      }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    dispatch(fetchConversations());
   }, [dispatch]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (shouldResetTutorSession()) {
+        dispatch(setActiveConversation(null));
+      }
+      markTutorSessionHandled();
+    }, [dispatch, shouldResetTutorSession, markTutorSessionHandled]),
+  );
 
   // Load messages when active conversation changes
   useEffect(() => {
@@ -240,31 +241,14 @@ const Tutor: React.FC = () => {
   }, [renameDraft, dispatch]);
 
   const handleExportPdf = useCallback(async () => {
-    if (!activeId || !isOnline) return;
+    if (!activeId || !isOnline || messages.length === 0) return;
     try {
-      const apiClient = (await import('../../../../infrastructure/api/client')).default;
-      const { data } = await apiClient.post<ArrayBuffer>(
-        `/v1/tutor/conversations/${activeId}/export/pdf`,
-        {},
-        { responseType: 'arraybuffer' },
-      );
-      const bytes = new Uint8Array(data);
-      let binary = '';
-      const chunkSize = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-      }
-      const base64 = btoa(binary);
       const conv = conversations.find((c) => c.id === activeId);
-      const rawName = conv?.title ?? `conversacion-${activeId}`;
-      const safeName = rawName.replace(/[/\\:*?"<>|]/g, '_').replace(/\s+/g, '_');
-      const uri = `${FileSystem.cacheDirectory}${safeName}.pdf`;
-      await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
-      await Sharing.shareAsync(uri);
+      await exportConversationAsPdf(conv?.title ?? null, messages);
     } catch {
       Alert.alert("Error", "No se pudo exportar el PDF.");
     }
-  }, [activeId, isOnline, conversations]);
+  }, [activeId, isOnline, messages, conversations]);
 
   const headerStyle = useMemo<ViewStyle>(
     () => ({

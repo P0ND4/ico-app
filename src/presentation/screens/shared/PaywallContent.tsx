@@ -109,7 +109,7 @@ const PaywallContent = ({
 
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [selectedPlanCode, setSelectedPlanCode] = useState<string | null>(null);
-  const [billing, setBilling] = useState<BillingCycle>("annual");
+  const [billing, setBilling] = useState<BillingCycle>("monthly");
 
   useEffect(() => {
     let active = true;
@@ -165,7 +165,7 @@ const PaywallContent = ({
           : "Rutas, tutor IA y resúmenes según el plan.";
 
   const selectedPlan = useMemo(() => {
-    const code = selectedPlanCode ?? upgradePlans[upgradePlans.length - 1]?.code;
+    const code = selectedPlanCode ?? upgradePlans[0]?.code;
     return upgradePlans.find((p) => p.code === code) ?? upgradePlans[0] ?? null;
   }, [upgradePlans, selectedPlanCode]);
 
@@ -177,7 +177,7 @@ const PaywallContent = ({
     const isSelectedValid = selectedPlanCode != null &&
       upgradePlans.some((p) => p.code === selectedPlanCode);
     if (!isSelectedValid) {
-      const defaultPlan = upgradePlans[upgradePlans.length - 1] ?? upgradePlans[0];
+      const defaultPlan = upgradePlans[0];
       if (defaultPlan) setSelectedPlanCode(defaultPlan.code);
     }
   }, [upgradePlans, selectedPlanCode]);

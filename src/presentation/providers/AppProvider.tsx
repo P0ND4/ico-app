@@ -7,10 +7,9 @@ import { store, persistor } from '../../application/store/index';
 import { setStoreRef } from '../../infrastructure/api/client';
 import { setOnline } from '../../application/slices/connectivity.slice';
 import { fetchCatalog } from '../../application/thunks/catalog.thunks';
-import { fetchProfile, fetchStats } from '../../application/thunks/user.thunks';
-import { fetchPaths } from '../../application/thunks/paths.thunks';
 import { syncOfflineQueue } from '../../application/thunks/offline-queue.thunks';
-import { selectIsAuthenticated } from '../../application/selectors/auth.selectors';
+import { selectIsAuthenticated, selectSessionReady } from '../../application/selectors/auth.selectors';
+import { restoreAuthSession } from '../../application/thunks/auth.thunks';
 import { selectIsOnline } from '../../application/selectors/connectivity.selectors';
 import { useAppSelector } from '../../application/store/hooks';
 import { ActivityIndicator, View } from 'react-native';
@@ -47,6 +46,7 @@ function ThemeStatusBar() {
 
 function StartupFetcher() {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const sessionReady = useAppSelector(selectSessionReady);
   const isOnline = useAppSelector(selectIsOnline);
 
   useEffect(() => {
@@ -54,14 +54,15 @@ function StartupFetcher() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && isOnline) {
+    void store.dispatch(restoreAuthSession());
+  }, []);
+
+  useEffect(() => {
+    if (sessionReady && isAuthenticated && isOnline) {
       store.dispatch(fetchCatalog());
-      store.dispatch(fetchProfile());
-      store.dispatch(fetchStats());
-      store.dispatch(fetchPaths());
       store.dispatch(syncOfflineQueue());
     }
-  }, [isAuthenticated, isOnline]);
+  }, [sessionReady, isAuthenticated, isOnline]);
 
   return null;
 }

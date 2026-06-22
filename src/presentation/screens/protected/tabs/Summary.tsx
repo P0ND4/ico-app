@@ -23,6 +23,7 @@ import IconButton from "../../../components/ui/buttons/IconButton";
 import { useAppDispatch, useAppSelector } from "../../../../application/store/hooks";
 import { fetchSummaries, generateSummary, generateSummaryFromFile, deleteSummary } from "../../../../application/thunks/summaries.thunks";
 import { summaryApiRepository } from "../../../../infrastructure/api/repositories/summary.api.repository";
+import { exportSummaryAsPdf } from "../../../../infrastructure/export/summary-pdf";
 import { selectSummaries, selectSummariesStatus, selectActiveSummary } from "../../../../application/selectors/summaries.selectors";
 import { setActiveSummary } from "../../../../application/slices/summaries.slice";
 import { useConnectivity } from "../../../hooks/useConnectivity";
@@ -165,23 +166,32 @@ const Summary: React.FC = () => {
     async (format: "pdf" | "txt" | "docx") => {
       if (!activeSummary || !isOnline) return;
       try {
+        if (format === "pdf") {
+          const rawName = activeSummary.sourceFilename
+            ? activeSummary.sourceFilename.replace(/\.[^.]+$/, "")
+            : activeSummary.summaryText.slice(0, 40).trim();
+          const title = rawName || "Resumen";
+          await exportSummaryAsPdf(title, activeSummary.summaryText);
+          return;
+        }
+
         const buffer = await summaryApiRepository.export(activeSummary.id, format);
         const bytes = new Uint8Array(buffer);
-        let binary = '';
+        let binary = "";
         const chunkSize = 0x8000;
         for (let i = 0; i < bytes.length; i += chunkSize) {
           binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
         }
         const base64 = btoa(binary);
         const rawName = activeSummary.sourceFilename
-          ? activeSummary.sourceFilename.replace(/\.[^.]+$/, '')
+          ? activeSummary.sourceFilename.replace(/\.[^.]+$/, "")
           : activeSummary.summaryText.slice(0, 40).trim();
-        const safeName = rawName.replace(/[/\\:*?"<>|]/g, '_').replace(/\s+/g, '_');
+        const safeName = rawName.replace(/[/\\:*?"<>|]/g, "_").replace(/\s+/g, "_");
         const uri = `${FileSystem.cacheDirectory}${safeName}.${format}`;
         await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
         await Sharing.shareAsync(uri);
       } catch {
-        Alert.alert('Error', `No se pudo exportar como ${format.toUpperCase()}.`);
+        Alert.alert("Error", `No se pudo exportar como ${format.toUpperCase()}.`);
       }
     },
     [activeSummary, isOnline],

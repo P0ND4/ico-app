@@ -1,4 +1,5 @@
 import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { logout } from '../../../application/slices/auth.slice';
 import { secureStorage } from '../../storage/secure-storage';
 import { getStoreRef } from '../store-ref';
 
@@ -20,7 +21,7 @@ export function applyRefreshInterceptor(client: AxiosInstance): void {
       if (config.url?.includes('/auth/refresh')) {
         const store = getStoreRef();
         if (store) {
-          const { logout } = await import('../../../application/slices/auth.slice');
+          await secureStorage.clearTokens();
           store.dispatch(logout());
         }
         return Promise.reject(error);
@@ -46,7 +47,7 @@ export function applyRefreshInterceptor(client: AxiosInstance): void {
       } catch {
         const store = getStoreRef();
         if (store) {
-          const { logout } = await import('../../../application/slices/auth.slice');
+          await secureStorage.clearTokens();
           store.dispatch(logout());
         }
         return Promise.reject(error);

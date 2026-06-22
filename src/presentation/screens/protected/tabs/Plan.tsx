@@ -1,17 +1,16 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { View, ScrollView, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import type { ViewStyle } from "react-native";
 import {
-  ChevronLeft,
-  ChevronRight,
   Plus,
   Trash2,
   Clock,
-  Calendar,
+  Calendar as CalendarIcon,
   CheckCircle2,
   Timer,
   XCircle,
 } from "lucide-react-native";
+import { Calendar, LocaleConfig } from "react-native-calendars";
+import type { DateData } from "react-native-calendars";
 import AppContainer from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
 import AppButton from "../../../components/ui/buttons/AppButton";
@@ -23,6 +22,7 @@ import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useAppDispatch, useAppSelector } from "../../../../application/store/hooks";
 import {
   fetchTasks,
+  fetchTaskDates,
   createTask,
   updateTask,
   deleteTask,
@@ -30,31 +30,31 @@ import {
   recordPomodoroSession,
   fetchPomodoroSessions,
 } from "../../../../application/thunks/plan.thunks";
-import { startTimer, tickTimer, stopTimer, resetTimer } from "../../../../application/slices/plan.slice";
-import { selectTasks, selectPomodoroPresets, selectTimerState } from "../../../../application/selectors/plan.selectors";
+import {
+  startTimer,
+  tickTimer,
+  stopTimer,
+  resetTimer,
+  setTimerPreset,
+} from "../../../../application/slices/plan.slice";
+import {
+  selectTasks,
+  selectTaskDates,
+  selectPomodoroPresets,
+  selectTimerState,
+} from "../../../../application/selectors/plan.selectors";
 
-function generateCalendarDays(offset: number = 0): {
-  dayName: string;
-  dayNumber: number;
-  date: Date;
-  isToday: boolean;
-}[] {
-  const today = new Date();
-  const base = new Date(today);
-  base.setDate(today.getDate() + offset * 30);
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(base);
-    date.setDate(base.getDate() + i);
-    const raw = date.toLocaleDateString("es-ES", { weekday: "short" });
-    const dayName = raw.charAt(0).toUpperCase() + raw.slice(1);
-    return {
-      dayName,
-      dayNumber: date.getDate(),
-      date,
-      isToday: offset === 0 && i === 0,
-    };
-  });
-}
+LocaleConfig.locales.es = {
+  monthNames: [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  ],
+  monthNamesShort: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
+  dayNames: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
+  dayNamesShort: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+  today: "Hoy",
+};
+LocaleConfig.defaultLocale = "es";
 
 function formatTime(secs: number): string {
   const m = Math.floor(secs / 60)
@@ -65,7 +65,10 @@ function formatTime(secs: number): string {
 }
 
 function dateToString(date: Date): string {
-  return date.toISOString().split("T")[0] ?? "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 const Plan = () => {
@@ -73,12 +76,12 @@ const Plan = () => {
   const dispatch = useAppDispatch();
 
   const tasks = useAppSelector(selectTasks);
+  const taskDates = useAppSelector(selectTaskDates);
   const presets = useAppSelector(selectPomodoroPresets);
   const timerState = useAppSelector(selectTimerState);
   const pomodoroSessions = useAppSelector((state) => state.plan.pomodoroSessions);
 
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const [currentMonthOffset, setCurrentMonthOffset] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(() => dateToString(new Date()));
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskTime, setNewTaskTime] = useState("");
@@ -86,29 +89,57 @@ const Plan = () => {
 
   const timerStartedAtRef = useRef<string | null>(null);
 
-  const calendarDays = useMemo(() => generateCalendarDays(currentMonthOffset), [currentMonthOffset]);
+  const calendarTheme = useMemo(
+    () => ({
+      backgroundColor: theme.surface,
+      calendarBackground: theme.surface,
+      textSectionTitleColor: theme.textMuted,
+      selectedDayBackgroundColor: theme.primary,
+      selectedDayTextColor: "#ffffff",
+      todayTextColor: theme.primary,
+      dayTextColor: theme.textPrimary,
+      textDisabledColor: theme.border,
+      arrowColor: theme.primary,
+      monthTextColor: theme.textPrimary,
+      textDayFontWeight: "400" as const,
+      textMonthFontWeight: "700" as const,
+      textDayHeaderFontWeight: "600" as const,
+    }),
+    [theme],
+  );
 
-  const selectedDate = useMemo(() => {
-    const day = calendarDays[selectedDayIndex];
-    return day ? dateToString(day.date) : dateToString(new Date());
-  }, [calendarDays, selectedDayIndex]);
+  const markedDates = useMemo(() => {
+    const marks = Object.fromEntries(
+      taskDates.map((date) => [date, { marked: true, dotColor: theme.primary }]),
+    ) as Record<
+      string,
+      { marked?: boolean; dotColor?: string; selected?: boolean; selectedColor?: string }
+    >;
 
-  const currentMonth = useMemo(() => {
-    const now = new Date();
-    now.setDate(now.getDate() + currentMonthOffset * 30);
-    return now.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-  }, [currentMonthOffset]);
+    marks[selectedDate] = {
+      ...marks[selectedDate],
+      selected: true,
+      selectedColor: theme.primary,
+      ...(marks[selectedDate] ? { marked: true, dotColor: theme.primary } : {}),
+    };
+
+    return marks;
+  }, [taskDates, selectedDate, theme.primary]);
+
+  const handleDayPress = useCallback((day: DateData) => {
+    setSelectedDate(day.dateString);
+  }, []);
 
   useEffect(() => {
     dispatch(fetchPomodoroPresets());
     dispatch(fetchPomodoroSessions());
+    dispatch(fetchTaskDates());
   }, [dispatch]);
 
   useEffect(() => {
     dispatch(fetchTasks(selectedDate));
   }, [dispatch, selectedDate]);
 
-  // Timer tick effect
   useEffect(() => {
     if (!timerState.running) return;
     const interval = setInterval(() => {
@@ -117,7 +148,6 @@ const Plan = () => {
     return () => clearInterval(interval);
   }, [timerState.running, dispatch]);
 
-  // Timer complete effect
   useEffect(() => {
     if (timerState.running === false && timerState.seconds === 0 && timerStartedAtRef.current !== null) {
       const startedAt = timerStartedAtRef.current;
@@ -141,7 +171,7 @@ const Plan = () => {
         }),
       );
     }
-  }, [timerState.running, timerState.seconds]);
+  }, [timerState.running, timerState.seconds, timerState.presetId, presets, dispatch]);
 
   const selectedPreset = useMemo(
     () => presets.find((p) => p.id === timerState.presetId) ?? presets[0] ?? null,
@@ -159,42 +189,48 @@ const Plan = () => {
     ? `Enfocate en: "${selectedTask.title}"`
     : "Elige una tarea y mantén el foco durante la sesión.";
 
-  const dayItem: ViewStyle = useMemo(
-    () => ({
-      width: 50,
-      height: 72,
-      borderRadius: 14,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.border,
-    }),
-    [theme.border],
-  );
-
   const handleToggleTask = (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     dispatch(updateTask({ id, isCompleted: !task.isCompleted }));
   };
 
-  const handleDeleteTask = (id: string) => {
-    dispatch(deleteTask(id));
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await dispatch(deleteTask(id)).unwrap();
+      dispatch(fetchTaskDates());
+    } catch {
+      Alert.alert("Error", "No se pudo eliminar la tarea. Intentá de nuevo.");
+    }
   };
 
   const handleStartTimer = () => {
     if (timerState.running) {
       dispatch(stopTimer());
-    } else {
-      const preset = selectedPreset;
-      if (!preset) return;
-      timerStartedAtRef.current = new Date().toISOString();
-      dispatch(startTimer({ seconds: timerState.seconds || preset.durationMinutes * 60, presetId: preset.id }));
+      return;
     }
+    const preset = selectedPreset;
+    if (!preset) return;
+    timerStartedAtRef.current = new Date().toISOString();
+    dispatch(
+      startTimer({
+        seconds: timerState.seconds || preset.durationMinutes * 60,
+        presetId: preset.id,
+      }),
+    );
   };
 
   const handleResetTimer = () => {
     timerStartedAtRef.current = null;
+    if (selectedPreset) {
+      dispatch(
+        setTimerPreset({
+          seconds: selectedPreset.durationMinutes * 60,
+          presetId: selectedPreset.id,
+        }),
+      );
+      return;
+    }
     dispatch(resetTimer());
   };
 
@@ -202,9 +238,12 @@ const Plan = () => {
     if (timerState.running) return;
     const preset = presets.find((p) => p.id === presetId);
     if (!preset) return;
-    dispatch(resetTimer());
-    dispatch(startTimer({ seconds: preset.durationMinutes * 60, presetId: preset.id }));
-    dispatch(stopTimer());
+    dispatch(
+      setTimerPreset({
+        seconds: preset.durationMinutes * 60,
+        presetId: preset.id,
+      }),
+    );
   };
 
   const timerDisplay =
@@ -216,90 +255,101 @@ const Plan = () => {
 
   return (
     <AppContainer style={s.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={s.scrollContent}
+      >
         {/* Header */}
         <View style={s.header}>
-          <View style={s.headerLeft}>
-            <View style={s.headerTitleRow}>
-              <View style={[s.headerIconBox, { backgroundColor: theme.primaryLight }]}>
-                <Calendar size={20} color={theme.primary} />
-              </View>
-              <AppText variant="title">Planificador</AppText>
+          <View style={s.headerTitleRow}>
+            <View style={[s.headerIconBox, { backgroundColor: theme.primaryLight }]}>
+              <CalendarIcon size={20} color={theme.primary} />
             </View>
-            <AppText variant="paragraph" muted style={s.mt4}>
-              Organiza tu autonomía.
-            </AppText>
-          </View>
-          <View style={[s.monthNavigator, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <IconButton
-              icon={<ChevronLeft size={14} color={theme.textPrimary} />}
-              size="small"
-              onPress={() => setCurrentMonthOffset((o) => o - 1)}
-            />
-            <AppText variant="smallParagraph" weight="600" style={s.monthLabel}>
-              {currentMonth}
-            </AppText>
-            <IconButton
-              icon={<ChevronRight size={14} color={theme.textPrimary} />}
-              size="small"
-              onPress={() => setCurrentMonthOffset((o) => o + 1)}
-            />
+            <View style={s.headerTextCol}>
+              <AppText variant="title">Planificador</AppText>
+              <AppText variant="paragraph" muted>
+                Organiza tu autonomía.
+              </AppText>
+            </View>
           </View>
         </View>
 
-        {/* Calendar Strip */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={s.calendarScrollView}
-          contentContainerStyle={s.calendarStrip}
+        <View style={[s.calendarCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Calendar
+            current={selectedDate}
+            onDayPress={handleDayPress}
+            markedDates={markedDates}
+            theme={calendarTheme}
+            enableSwipeMonths
+            firstDay={1}
+            style={s.calendar}
+          />
+        </View>
+
+        {/* Pomodoro */}
+        <View
+          style={[
+            s.pomodoroCard,
+            {
+              backgroundColor: theme.primaryLight,
+              borderColor: `${theme.primary}25`,
+            },
+          ]}
         >
-          {calendarDays.map((day, index) => {
-            const isSelected = index === selectedDayIndex;
-            return (
-              <TouchableOpacity
-                key={day.date.toISOString()}
-                activeOpacity={0.6}
-                style={[
-                  dayItem,
-                  isSelected && {
-                    backgroundColor: theme.primary,
-                    borderColor: theme.primary,
-                    shadowColor: theme.primary,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 4,
-                  },
-                  !isSelected && { backgroundColor: theme.surface },
-                ]}
-                onPress={() => setSelectedDayIndex(index)}
-              >
-                <AppText
-                  variant="verySmall"
-                  color={isSelected ? "#FFFFFF" : theme.textMuted}
-                  weight={isSelected ? "600" : "normal"}
-                >
-                  {day.dayName}
-                </AppText>
-                <AppText
-                  variant="smallSubtitle"
-                  color={isSelected ? "#FFFFFF" : theme.textPrimary}
-                  weight={isSelected ? "bold" : "normal"}
-                >
-                  {day.dayNumber}
-                </AppText>
-                {day.isToday && !isSelected && <View style={[s.todayDot, { backgroundColor: theme.primary }]} />}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+          <View style={s.pomodoroTagRow}>
+            <View style={[s.pomodoroTagDot, { backgroundColor: theme.primary }]} />
+            <AppText variant="verySmall" color={theme.primary} weight="bold" style={s.pomodoroTag}>
+              TÉCNICA POMODORO
+            </AppText>
+          </View>
+
+          {sessionCount > 0 && (
+            <View style={[s.sessionBadge, { backgroundColor: `${theme.success}18` }]}>
+              <AppText variant="verySmall" color={theme.success} weight="700">
+                {sessionCount} sesión{sessionCount > 1 ? "es" : ""} hoy
+              </AppText>
+            </View>
+          )}
+
+          {pickerOptions.length > 0 && (
+            <AppSegmentedPicker
+              options={pickerOptions}
+              selectedValue={timerState.presetId ?? pickerOptions[0]?.value ?? ""}
+              onSelect={handleSelectPreset}
+              style={s.durationPicker}
+            />
+          )}
+
+          <AppText variant="smallParagraph" muted style={s.pomodoroTaskMsg}>
+            {pomodoroMsg}
+          </AppText>
+
+          <View style={s.timerRow}>
+            <AppText variant="bigSubtitle" weight="bold" color={theme.primary}>
+              {timerDisplay}
+            </AppText>
+            <TouchableOpacity onPress={handleResetTimer} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <AppText variant="verySmall" color={theme.textMuted}>
+                Reiniciar
+              </AppText>
+            </TouchableOpacity>
+          </View>
+
+          <AppButton variant="primary" widthFull onPress={handleStartTimer} style={s.pomodoroButton}>
+            <View style={s.pomodoroButtonContent}>
+              <Clock size={16} color={theme.textOnPrimary} />
+              <AppText variant="smallSubtitle" color={theme.textOnPrimary} weight="600">
+                {timerState.running ? "Pausar" : "Iniciar temporizador"}
+              </AppText>
+            </View>
+          </AppButton>
+        </View>
 
         {/* Task List */}
         <GlassCard padding={16} style={s.section}>
           <View style={s.taskListHeader}>
             <AppText variant="subtitle" weight="600">
-              Sesiones de Hoy
+              Sesiones del día
             </AppText>
             <IconButton
               icon={<Plus size={16} color="#FFFFFF" />}
@@ -309,15 +359,14 @@ const Plan = () => {
             />
           </View>
 
-          {/* Inline add form */}
           {showAddForm && (
             <View style={s.addForm}>
               <AppInput placeholder="Título de la tarea" value={newTaskTitle} onChangeText={setNewTaskTitle} />
               <AppInput
-                placeholder="Hora o recordatorio (ej: 15:00, A las 3)"
+                placeholder="Hora o recordatorio (ej: 15:00)"
                 value={newTaskTime}
                 onChangeText={setNewTaskTime}
-                stylesContainer={{ marginTop: 8 }}
+                stylesContainer={s.addFormTimeInput}
               />
               <View style={s.addFormActions}>
                 <AppButton
@@ -365,7 +414,7 @@ const Plan = () => {
 
           {tasks.length === 0 && (
             <AppText variant="smallParagraph" muted align="center" style={s.emptyTasks}>
-              No hay sesiones para hoy.
+              No hay sesiones para este día.
             </AppText>
           )}
 
@@ -409,7 +458,7 @@ const Plan = () => {
                     variant="paragraph"
                     muted={task.isCompleted}
                     lineThrough={task.isCompleted}
-                    numberOfLines={1}
+                    numberOfLines={2}
                     weight={task.isCompleted ? "normal" : "500"}
                   >
                     {task.title}
@@ -464,13 +513,13 @@ const Plan = () => {
                     key={session.id}
                     style={[s.taskRow, idx > 0 && { borderTopColor: theme.border, borderTopWidth: 1 }]}
                   >
-                    <Timer size={16} color={theme.primary} style={{ marginRight: 10 }} />
+                    <Timer size={16} color={theme.primary} style={s.historyIcon} />
                     <View style={s.taskInfo}>
                       <AppText variant="smallParagraph" weight="500">
                         {session.durationMinutes} min
                       </AppText>
                     </View>
-                    <AppText variant="verySmall" muted style={{ marginRight: 10 }}>
+                    <AppText variant="verySmall" muted style={s.historyDate}>
                       {dd}/{mm}
                     </AppText>
                     {session.isCompleted ? (
@@ -483,71 +532,6 @@ const Plan = () => {
               })
           )}
         </GlassCard>
-
-        {/* Pomodoro Tip Card */}
-        <View style={s.section}>
-          <View
-            style={[
-              s.pomodoroCard,
-              {
-                backgroundColor: theme.primaryLight,
-                borderColor: `${theme.primary}20`,
-              },
-            ]}
-          >
-            <View style={s.pomodoroTagRow}>
-              <View style={[s.pomodoroTagDot, { backgroundColor: theme.primary }]} />
-              <AppText variant="verySmall" color={theme.primary} weight="bold" style={s.pomodoroTag}>
-                TIP DE AUTONOMÍA
-              </AppText>
-            </View>
-            <AppText variant="subtitle" style={s.mb8}>
-              Técnica Pomodoro Adaptativa
-            </AppText>
-
-            {sessionCount > 0 && (
-              <View style={[s.sessionBadge, { backgroundColor: `${theme.success}18` }]}>
-                <AppText variant="verySmall" color={theme.success} weight="700">
-                  {sessionCount} sesión{sessionCount > 1 ? "es" : ""} hoy
-                </AppText>
-              </View>
-            )}
-
-            {pickerOptions.length > 0 && (
-              <AppSegmentedPicker
-                options={pickerOptions}
-                selectedValue={timerState.presetId ?? pickerOptions[0]?.value ?? ""}
-                onSelect={handleSelectPreset}
-                style={s.durationPicker}
-              />
-            )}
-
-            <AppText variant="smallParagraph" muted style={s.pomodoroTaskMsg}>
-              {pomodoroMsg}
-            </AppText>
-
-            <View style={s.timerRow}>
-              <AppText variant="bigSubtitle" weight="bold" color={theme.primary} style={s.timerDisplay}>
-                {timerDisplay}
-              </AppText>
-              <TouchableOpacity onPress={handleResetTimer} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <AppText variant="verySmall" color={theme.textMuted}>
-                  Reiniciar
-                </AppText>
-              </TouchableOpacity>
-            </View>
-
-            <AppButton variant="primary" style={s.pomodoroButton} onPress={handleStartTimer}>
-              <View style={s.pomodoroButtonContent}>
-                <Clock size={16} color={theme.textOnPrimary} />
-                <AppText variant="smallSubtitle" color={theme.textOnPrimary} weight="600">
-                  {timerState.running ? " Pausar" : " Iniciar temporizador"}
-                </AppText>
-              </View>
-            </AppButton>
-            <Clock size={90} color={`${theme.primary}20`} style={s.pomodoroIcon} />
-          </View>
-        </View>
       </ScrollView>
     </AppContainer>
   );
@@ -555,85 +539,112 @@ const Plan = () => {
 
 const s = StyleSheet.create({
   container: {
+    padding: 0,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 0,
+    paddingTop: 8,
+    paddingBottom: 110,
   },
   section: {
-    marginTop: 24,
-  },
-  mt4: {
-    marginTop: 4,
-  },
-  mb8: {
-    marginBottom: 8,
+    marginTop: 16,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  headerLeft: {
-    flex: 1,
+    marginBottom: 12,
   },
   headerTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
+  },
+  headerTextCol: {
+    flex: 1,
+    gap: 2,
   },
   headerIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  monthNavigator: {
+  calendarCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  calendar: {
+    borderRadius: 16,
+  },
+  pomodoroCard: {
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  pomodoroTagRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
+    marginBottom: 10,
+    gap: 8,
+  },
+  pomodoroTagDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pomodoroTag: {
+    letterSpacing: 0.8,
+  },
+  timerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    marginBottom: 14,
+  },
+  sessionBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  durationPicker: {
+    marginBottom: 10,
+  },
+  pomodoroTaskMsg: {
+    marginBottom: 12,
+    fontStyle: "italic",
+  },
+  pomodoroButton: {
     borderRadius: 14,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
   },
-  monthLabel: {
-    marginHorizontal: 6,
-    textTransform: "capitalize",
-  },
-  calendarScrollView: {
-    marginTop: 24,
-    marginHorizontal: -20,
-  },
-  calendarStrip: {
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-    gap: 10,
-  },
-  todayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 3,
+  pomodoroButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   taskListHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   emptyTasks: {
-    paddingVertical: 28,
+    paddingVertical: 20,
   },
   taskRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   taskAccent: {
     width: 3,
     alignSelf: "stretch",
     borderRadius: 2,
-    marginRight: 12,
+    marginRight: 10,
   },
   taskCheckRow: {
     flexDirection: "row",
@@ -641,13 +652,13 @@ const s = StyleSheet.create({
     flex: 1,
   },
   checkbox: {
-    width: 26,
-    height: 26,
+    width: 24,
+    height: 24,
     borderRadius: 8,
     borderWidth: 2,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
   taskInfo: {
     flex: 1,
@@ -662,68 +673,19 @@ const s = StyleSheet.create({
   },
   deleteBtn: {
     padding: 4,
-    marginLeft: 8,
+    marginLeft: 6,
   },
-  pomodoroCard: {
-    borderRadius: 20,
-    padding: 22,
-    overflow: "hidden",
-    position: "relative",
-    borderWidth: 1,
+  historyIcon: {
+    marginRight: 10,
   },
-  pomodoroTagRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 8,
-  },
-  pomodoroTagDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  pomodoroTag: {
-    letterSpacing: 1,
-  },
-  timerDisplay: {
-    textAlign: "center",
-  },
-  timerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  sessionBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  durationPicker: {
-    marginBottom: 12,
-  },
-  pomodoroTaskMsg: {
-    marginBottom: 16,
-    fontStyle: "italic",
-  },
-  pomodoroButton: {
-    borderRadius: 14,
-    alignSelf: "flex-start",
-  },
-  pomodoroButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  pomodoroIcon: {
-    position: "absolute",
-    bottom: -14,
-    right: -14,
+  historyDate: {
+    marginRight: 10,
   },
   addForm: {
-    marginTop: 12,
+    marginBottom: 12,
+  },
+  addFormTimeInput: {
+    marginTop: 8,
   },
   addFormActions: {
     flexDirection: "row",

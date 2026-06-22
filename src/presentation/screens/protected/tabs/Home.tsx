@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { View, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import type { ViewStyle } from "react-native";
 import {
@@ -63,14 +63,14 @@ const Home = () => {
 
   useInterstitialAd(!showAds);
 
-  useEffect(() => {
-    dispatch(fetchPaths());
-    dispatch(fetchProfile());
-    dispatch(fetchStats());
-  }, [dispatch]);
+  const isFirstFocus = useRef(true);
 
   useFocusEffect(
     React.useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
       dispatch(fetchPaths());
       dispatch(fetchProfile());
       dispatch(fetchStats());

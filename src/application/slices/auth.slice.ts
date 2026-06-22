@@ -4,12 +4,14 @@ export interface AuthState {
   isAuthenticated: boolean;
   isGuest: boolean;
   userId: string | null;
+  sessionReady: boolean;
 }
 
 const initialState: AuthState = {
   isAuthenticated: false,
   isGuest: false,
   userId: null,
+  sessionReady: false,
 };
 
 const authSlice = createSlice({
@@ -29,8 +31,11 @@ const authSlice = createSlice({
       state.userId = null;
       state.isGuest = false;
     },
+    setSessionReady: (state, action: PayloadAction<boolean>) => {
+      state.sessionReady = action.payload;
+    },
   },
 });
 
-export const { setAuthenticated, logout } = authSlice.actions;
+export const { setAuthenticated, logout, setSessionReady } = authSlice.actions;
 export default authSlice.reducer;

@@ -16,6 +16,16 @@ export const fetchTasks = createAsyncThunk(
   },
 );
 
+export const fetchTaskDates = createAsyncThunk(
+  'plan/fetchTaskDates',
+  async (_, { getState, rejectWithValue }) => {
+    const state = getState() as RootState;
+    if (!state.connectivity.isOnline) return rejectWithValue('offline');
+    const tasks = await planApiRepository.getTasks();
+    return [...new Set(tasks.map((task) => task.scheduledDate).filter(Boolean))];
+  },
+);
+
 export const createTask = createAsyncThunk(
   'plan/createTask',
   async (dto: CreateTaskDto) => planApiRepository.createTask(dto),

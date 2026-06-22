@@ -2,11 +2,15 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import { authApiRepository } from '../../infrastructure/api/repositories/auth.api.repository';
 import { signOutFromGoogle } from '../../infrastructure/auth/google-signin.utils';
 import { secureStorage } from '../../infrastructure/storage/secure-storage';
-import { setAuthenticated, logout as logoutAction } from '../slices/auth.slice';
+import { setAuthenticated, logout as logoutAction, setSessionReady } from '../slices/auth.slice';
 import { fetchProfile, fetchStats } from './user.thunks';
 import { fetchPaths } from './paths.thunks';
 import type { RootState } from '../store/index';
-import { toApiRejection } from '../../infrastructure/api/auth-error.utils';
+import { parseApiError } from '../../infrastructure/api/auth-error.utils';
+
+function loadUserBootstrapData(dispatch: (action: unknown) => unknown) {
+  return Promise.all([dispatch(fetchProfile()), dispatch(fetchStats()), dispatch(fetchPaths())]);
+}
 
 export const loginWithGoogle = createAsyncThunk(
   'auth/loginWithGoogle',
@@ -15,7 +19,7 @@ export const loginWithGoogle = createAsyncThunk(
     const response = await authApiRepository.loginWithGoogle(idToken, deviceId);
     await secureStorage.setTokens(response.accessToken, response.refreshToken);
     dispatch(setAuthenticated({ userId: response.user.id, isGuest: false }));
-    await Promise.all([dispatch(fetchProfile()), dispatch(fetchStats()), dispatch(fetchPaths())]);
+    await loadUserBootstrapData(dispatch);
     return response;
   },
 );
@@ -30,7 +34,7 @@ export const loginWithApple = createAsyncThunk(
     const response = await authApiRepository.loginWithApple(identityToken, fullName, deviceId);
     await secureStorage.setTokens(response.accessToken, response.refreshToken);
     dispatch(setAuthenticated({ userId: response.user.id, isGuest: false }));
-    await Promise.all([dispatch(fetchProfile()), dispatch(fetchStats()), dispatch(fetchPaths())]);
+    await loadUserBootstrapData(dispatch);
     return response;
   },
 );
@@ -42,8 +46,65 @@ export const loginAsGuest = createAsyncThunk(
     const response = await authApiRepository.loginAsGuest(deviceId);
     await secureStorage.setTokens(response.accessToken, response.refreshToken);
     dispatch(setAuthenticated({ userId: response.user.id, isGuest: true }));
-    await Promise.all([dispatch(fetchProfile()), dispatch(fetchStats()), dispatch(fetchPaths())]);
+    await loadUserBootstrapData(dispatch);
     return response;
+  },
+);
+
+function isGuestUser(user: { email: string | null }): boolean {
+  return user.email === null;
+}
+
+export const restoreAuthSession = createAsyncThunk(
+  'auth/restoreSession',
+  async (_, { dispatch, getState }) => {
+    try {
+      const refreshToken = await secureStorage.getRefreshToken();
+      const { auth } = getState() as RootState;
+
+      if (!refreshToken) {
+        if (auth.isAuthenticated) {
+          dispatch(logoutAction());
+        }
+        return;
+      }
+
+      const applyAuth = async (response: Awaited<ReturnType<typeof authApiRepository.refresh>>) => {
+        await secureStorage.setTokens(response.accessToken, response.refreshToken);
+        dispatch(
+          setAuthenticated({
+            userId: response.user.id,
+            isGuest: auth.isAuthenticated ? auth.isGuest : isGuestUser(response.user),
+          }),
+        );
+        await loadUserBootstrapData(dispatch);
+      };
+
+      if (auth.isAuthenticated && auth.userId) {
+        try {
+          await dispatch(fetchProfile()).unwrap();
+          await Promise.all([dispatch(fetchStats()), dispatch(fetchPaths())]);
+          return;
+        } catch {
+          try {
+            await applyAuth(await authApiRepository.refresh(refreshToken));
+          } catch {
+            await secureStorage.clearTokens();
+            dispatch(logoutAction());
+          }
+        }
+        return;
+      }
+
+      try {
+        await applyAuth(await authApiRepository.refresh(refreshToken));
+      } catch {
+        await secureStorage.clearTokens();
+        dispatch(logoutAction());
+      }
+    } finally {
+      dispatch(setSessionReady(true));
+    }
   },
 );
 
@@ -69,7 +130,7 @@ export const linkGoogle = createAsyncThunk(
       const userId = (getState() as RootState).auth.userId;
       dispatch(setAuthenticated({ userId: userId ?? '', isGuest: false }));
     } catch (err) {
-      return rejectWithValue(toApiRejection(err));
+      return rejectWithValue(parseApiError(err));
     }
   },
 );
@@ -85,7 +146,7 @@ export const linkApple = createAsyncThunk(
       const userId = (getState() as RootState).auth.userId;
       dispatch(setAuthenticated({ userId: userId ?? '', isGuest: false }));
     } catch (err) {
-      return rejectWithValue(toApiRejection(err));
+      return rejectWithValue(parseApiError(err));
     }
   },
 );
