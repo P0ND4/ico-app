@@ -20,7 +20,12 @@
       "adaptiveIcon": {
         "foregroundImage": "./src/presentation/assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./src/presentation/assets/favicon.png"
