@@ -118,7 +118,7 @@ const Summary: React.FC = () => {
 
   const handleFilePick = useCallback(async () => {
     if (!isOnline) {
-      Alert.alert('Sin conexión', 'Necesitás internet para subir un archivo.');
+      Alert.alert('Sin conexión', 'Necesitas internet para subir un archivo.');
       return;
     }
     if (!canUseSummary) {
@@ -210,7 +210,7 @@ const Summary: React.FC = () => {
     (id: string) => {
       Alert.alert(
         "Eliminar resumen",
-        "¿Estás seguro de que querés eliminar este resumen?",
+        "¿Estás seguro de que quieres eliminar este resumen?",
         [
           { text: "Cancelar", style: "cancel" },
           {
@@ -293,8 +293,8 @@ const Summary: React.FC = () => {
             <AlertCircle size={14} color={theme.primary} />
             <AppText variant="verySmall" color={theme.primary} weight="600">
               {trialExhausted
-                ? "Prueba gratuita agotada en este dispositivo — suscribite a Prémium para seguir"
-                : `Cupo de resúmenes agotado${summaryRequestLimit != null ? ` (${summaryRequestLimit} resúmenes)` : ""} — suscribite a Prémium para seguir`}
+                ? "Prueba gratuita agotada en este dispositivo — suscríbete a Prémium para seguir"
+                : `Cupo de resúmenes agotado${summaryRequestLimit != null ? ` (${summaryRequestLimit} resúmenes)` : ""} — suscríbete a Prémium para seguir`}
             </AppText>
           </TouchableOpacity>
         )}

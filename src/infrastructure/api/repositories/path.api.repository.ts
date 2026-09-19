@@ -3,8 +3,10 @@ import type { PathRepository, UpdatePathDto } from '../../../domain/repositories
 import type { LearningPath, GeneratePathDto, PathGenerationJob } from '../../../domain/entities/path.entity';
 
 export const pathApiRepository: PathRepository = {
-  getAll: async () => {
-    const { data } = await apiClient.get<LearningPath[]>('/v1/paths');
+  getAll: async (includeDeleted = false) => {
+    const { data } = await apiClient.get<LearningPath[]>('/v1/paths', {
+      params: includeDeleted ? { includeDeleted: 'true' } : undefined,
+    });
     return data;
   },
 
@@ -30,6 +32,11 @@ export const pathApiRepository: PathRepository = {
 
   delete: async (id) => {
     await apiClient.delete(`/v1/paths/${id}`);
+  },
+
+  restore: async (id) => {
+    const { data } = await apiClient.post<LearningPath>(`/v1/paths/${id}/restore`);
+    return data;
   },
 
   askTutor: async (pathId, body) => {

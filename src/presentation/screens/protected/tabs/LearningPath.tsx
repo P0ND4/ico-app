@@ -153,7 +153,7 @@ const LearningPath: React.FC = () => {
             weight="600"
             style={styles.emptyCardTitle}
           >
-            ¿Qué querés aprender?
+            ¿Qué quieres aprender?
           </AppText>
 
           <View style={[infoBoxStyle, styles.infoBox]}>
@@ -163,8 +163,8 @@ const LearningPath: React.FC = () => {
               style={styles.infoIcon}
             />
             <AppText variant="smallParagraph" style={styles.infoText}>
-              La IA analiza la complejidad del tema y diseña una ruta que
-              fomenta el análisis profundo antes de la práctica.
+              Con la ayuda de la IA se realiza un análisis profundo del tema,
+              lo cual permite aclarar lo que se desea investigar.
             </AppText>
           </View>
 

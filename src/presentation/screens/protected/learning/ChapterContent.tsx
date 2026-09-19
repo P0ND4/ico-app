@@ -29,6 +29,7 @@ import RichMarkdownView from "../../../components/ui/typography/RichMarkdownView
 import { preprocessMath } from "../../../utils/math.utils";
 import { createAiMarkdownRules } from "../../../utils/markdown-display.rules";
 import PaywallModal from "../../shared/PaywallModal";
+import { RETRY_MESSAGE } from "../../../../shared/messages";
 
 function mdStyles(theme: ThemeColors) {
   return {
@@ -229,7 +230,7 @@ const OpenEndedLesson: React.FC<OEProps> = ({ lesson, theme, answer, onChangeAns
     <TextInput
       value={answer}
       onChangeText={onChangeAnswer}
-      placeholder="Escribí tu respuesta..."
+      placeholder="Escribe tu respuesta..."
       placeholderTextColor={theme.textMuted}
       multiline
       style={[s.oeInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.textPrimary }]}
@@ -412,7 +413,7 @@ const ChapterContent = () => {
           .catch(() => {
             allowLeaveRef.current = false;
             setSubmittingExam(false);
-            Alert.alert("Error", "No se pudo evaluar el examen. Intentá de nuevo.");
+            Alert.alert("Error", `No se pudo evaluar el examen. ${RETRY_MESSAGE}`);
           });
         return;
       }
@@ -439,7 +440,7 @@ const ChapterContent = () => {
         });
       }).catch(() => {
         allowLeaveRef.current = false;
-        Alert.alert("Error", "No se pudo completar el capítulo. Intentá de nuevo.");
+        Alert.alert("Error", `No se pudo completar el capítulo. ${RETRY_MESSAGE}`);
       });
       return;
     }
@@ -579,7 +580,7 @@ const ChapterContent = () => {
             <AppText variant="smallSubtitle" color="#fff" weight="700">
               {feedback === "correct"
                 ? `¡Correcto! +${feedbackPoints} pts`
-                : "Incorrecto — revisá la respuesta"}
+                : "Incorrecto — revisa la respuesta"}
             </AppText>
           </View>
           <AppButton
@@ -618,7 +619,7 @@ const ChapterContent = () => {
             keyboardShouldPersistTaps="handled"
           >
             <AppText variant="smallParagraph" muted style={s.tutorHint}>
-              Preguntá sobre el contenido de esta lección. Te ayudo a entender, no a copiar respuestas.
+              Pregunta sobre el contenido de esta lección. Te ayudo a entender, no a copiar respuestas.
             </AppText>
             {tutorAnswer && <ChatBubble role="model" text={tutorAnswer} />}
             {tutorLoading && (

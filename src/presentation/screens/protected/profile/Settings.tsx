@@ -27,6 +27,7 @@ import { useAppDispatch, useAppSelector } from "../../../../application/store/ho
 import { setThemeMode, type ThemeMode } from "../../../../application/slices/user.slice";
 import { selectThemeMode, selectUserProfile } from "../../../../application/selectors/user.selectors";
 import { updateProfile } from "../../../../application/thunks/user.thunks";
+import { RETRY_MESSAGE } from "../../../../shared/messages";
 
 const STUDY_REMINDER_KEY = "ico_study_reminder_enabled";
 
@@ -76,7 +77,7 @@ const Settings = () => {
       })).unwrap();
       setProfileModalVisible(false);
     } catch {
-      Alert.alert("Error", "No se pudo guardar tu perfil. Intentá de nuevo.");
+      Alert.alert("Error", `No se pudo guardar tu perfil. ${RETRY_MESSAGE}`);
     } finally {
       setSavingProfile(false);
     }
@@ -88,7 +89,7 @@ const Settings = () => {
       if (!granted) {
         Alert.alert(
           "Permisos necesarios",
-          "Activá las notificaciones en Ajustes del dispositivo para recibir recordatorios.",
+          "Activa las notificaciones en Ajustes del dispositivo para recibir recordatorios.",
         );
         return;
       }
@@ -143,7 +144,7 @@ const Settings = () => {
                 Preferencias de aprendizaje
               </AppText>
               <AppText variant="verySmall" muted>
-                Personalizá cursos, tutor y resúmenes
+                Personaliza rutas, tutor y resúmenes
               </AppText>
             </View>
             <ChevronLeft size={16} color={theme.textMuted} style={s.chevronRight} />
@@ -304,12 +305,12 @@ const Settings = () => {
             showsVerticalScrollIndicator={false}
           >
             <AppText variant="smallParagraph" muted style={s.modalIntro}>
-              Ayudanos a personalizar tus cursos, tutor y resúmenes.
+              Ayúdanos a personalizar tus rutas, tutor y resúmenes.
             </AppText>
 
             <View style={s.fieldGroup}>
               <AppText variant="verySmall" weight="600" style={s.fieldLabel}>
-                ¿Cómo aprendés mejor?
+                ¿Cómo aprendes mejor?
               </AppText>
               <AppInput
                 value={learningStyle}
@@ -325,7 +326,7 @@ const Settings = () => {
 
             <View style={s.fieldGroup}>
               <AppText variant="verySmall" weight="600" style={s.fieldLabel}>
-                ¿Qué te gusta de un curso?
+                ¿Qué te gusta de una ruta?
               </AppText>
               <AppInput
                 value={coursePreferences}

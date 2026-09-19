@@ -2,17 +2,30 @@ import { createSelector } from '@reduxjs/toolkit';
 import type { LearningPath, Chapter, Lesson } from '../../domain/entities/path.entity';
 import type { RootState } from '../store/index';
 
-export const selectAllPaths = createSelector(
+/** Every stored path, soft-deleted ones included. Only the trash should use this. */
+const selectPathsIncludingDeleted = createSelector(
   (state: RootState) => state.paths.pathIds,
   (state: RootState) => state.paths.paths,
   (pathIds, paths) =>
     pathIds.map((id) => paths[id]).filter((p): p is LearningPath => p !== undefined),
 );
 
+export const selectAllPaths = createSelector(
+  [selectPathsIncludingDeleted],
+  (paths) => paths.filter((p) => !p.deletedAt),
+);
+
+export const selectDeletedPaths = createSelector(
+  [selectPathsIncludingDeleted],
+  (paths) => paths.filter((p) => !!p.deletedAt),
+);
+
 export const selectPathById =
   (id: string) =>
-  (state: RootState): LearningPath | null =>
-    state.paths.paths[id] ?? null;
+  (state: RootState): LearningPath | null => {
+    const path = state.paths.paths[id];
+    return path && !path.deletedAt ? path : null;
+  };
 
 export const selectChaptersByPathId = (pathId: string) =>
   createSelector(

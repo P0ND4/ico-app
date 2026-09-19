@@ -72,7 +72,7 @@ const ExamResult = () => {
             {score}/100
           </AppText>
           <AppText variant="paragraph" muted align="center" style={s.mt4}>
-            {passed ? "¡Aprobado! Podés continuar." : "No alcanzaste el mínimo (70/100)."}
+            {passed ? "¡Aprobado! Puedes continuar." : "No alcanzaste el mínimo (70/100)."}
           </AppText>
 
           {/* Strengths */}

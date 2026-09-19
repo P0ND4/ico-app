@@ -36,6 +36,7 @@ import {
   getGoogleDeveloperErrorMessage,
   isGoogleDeveloperError,
 } from "../../../../infrastructure/auth/google-signin.utils";
+import { RETRY_MESSAGE } from "../../../../shared/messages";
 
 const Profile = () => {
   const theme = useThemeColors();
@@ -69,14 +70,14 @@ const Profile = () => {
     try {
       await dispatch(updateProfile({ name: name.trim() })).unwrap();
     } catch {
-      Alert.alert("Error", "No se pudo actualizar el perfil. Intentá de nuevo.");
+      Alert.alert("Error", `No se pudo actualizar el perfil. ${RETRY_MESSAGE}`);
     } finally {
       setSavingProfile(false);
     }
   }, [dispatch, name]);
 
   const handleLogout = useCallback(() => {
-    Alert.alert("Cerrar sesión", "¿Querés salir de tu cuenta?", [
+    Alert.alert("Cerrar sesión", "¿Quieres salir de tu cuenta?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Salir",
@@ -114,7 +115,7 @@ const Profile = () => {
     if (!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID) {
       Alert.alert(
         "Configuración faltante",
-        "Definí EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID en ico-app/.env y reiniciá Metro.",
+        "Define EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID en ico-app/.env y reinicia Metro.",
       );
       return;
     }
@@ -127,7 +128,7 @@ const Profile = () => {
       if (signInResult.type === "cancelled") return;
       const tokens = await GoogleSignin.getTokens();
       if (!tokens.idToken) {
-        Alert.alert("Error", "Google no devolvió un token. Intentá de nuevo.");
+        Alert.alert("Error", `Google no devolvió un token. ${RETRY_MESSAGE}`);
         return;
       }
       await dispatch(linkGoogle(tokens.idToken)).unwrap();
@@ -321,7 +322,7 @@ const Profile = () => {
           {isGuest && (
             <View style={s.linkSection}>
               <AppText variant="smallParagraph" muted style={s.linkHint}>
-                Vinculá tu cuenta para guardar tu progreso
+                Vincula tu cuenta para guardar tu progreso
               </AppText>
               <AppButton
                 variant="secondary"

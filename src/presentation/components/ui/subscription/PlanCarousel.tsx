@@ -137,7 +137,7 @@ export default function PlanCarousel({
             </AppText>
             {billing === "annual" && discount ? (
               <AppText variant="verySmall" color={theme.success} weight="700">
-                Ahorrá {discount} vs mensual
+                Ahorra {discount} vs mensual
               </AppText>
             ) : null}
           </View>

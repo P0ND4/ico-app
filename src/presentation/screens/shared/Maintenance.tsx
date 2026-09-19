@@ -50,7 +50,7 @@ const Maintenance = () => {
           align="center"
           style={styles.description}
         >
-          Estamos mejorando la experiencia. Volvé en unos minutos.
+          Estamos mejorando la experiencia. Vuelve en unos minutos.
         </AppText>
 
         {/* ── Retry Button ── */}

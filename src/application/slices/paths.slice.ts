@@ -8,6 +8,7 @@ import {
   fetchPathJob,
   updatePath,
   deletePath,
+  restorePath,
 } from '../thunks/paths.thunks';
 
 export interface PathsState {
@@ -178,22 +179,21 @@ const pathsSlice = createSlice({
       })
       // updatePath
       .addCase(updatePath.fulfilled, (state, action) => {
-        const path = action.payload;
-        state.paths[path.id] = path;
+        const { chapters: _c, ...path } = action.payload;
+        const existing = state.paths[path.id];
+        // The API answers with the detail shape, so merge to keep list-only fields.
+        state.paths[path.id] = existing ? { ...existing, ...path } : (path as LearningPath);
       })
-      // deletePath
+      // deletePath — soft delete: the path stays in the store so it can be restored
       .addCase(deletePath.fulfilled, (state, action) => {
-        const id = action.payload;
-        delete state.paths[id];
-        state.pathIds = state.pathIds.filter(pid => pid !== id);
-        // clean up chapters and lessons for this path
-        const chapterIds = Object.keys(state.chapters).filter(
-          cid => state.chapters[cid]?.pathId === id,
-        );
-        for (const cid of chapterIds) {
-          delete state.chapters[cid];
-          delete state.lessons[cid];
-        }
+        const { id, deletedAt } = action.payload;
+        const path = state.paths[id];
+        if (path) path.deletedAt = deletedAt;
+      })
+      // restorePath
+      .addCase(restorePath.fulfilled, (state, action) => {
+        const path = state.paths[action.payload];
+        if (path) path.deletedAt = null;
       });
   },
 });

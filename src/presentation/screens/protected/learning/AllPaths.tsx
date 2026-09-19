@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
   Archive,
+  Trash2,
 } from "lucide-react-native";
 import Animated, {
   useSharedValue,
@@ -25,8 +26,17 @@ import AppText from "../../../components/ui/typography/AppText";
 import AppButton from "../../../components/ui/buttons/AppButton";
 import ProgressBar from "../../../components/ui/feedback/ProgressBar";
 import { useAppDispatch, useAppSelector } from "../../../../application/store/hooks";
-import { fetchPaths, fetchPathJob, updatePath, deletePath } from "../../../../application/thunks/paths.thunks";
-import { selectAllPaths } from "../../../../application/selectors/paths.selectors";
+import {
+  fetchPaths,
+  fetchPathJob,
+  updatePath,
+  deletePath,
+  restorePath,
+} from "../../../../application/thunks/paths.thunks";
+import {
+  selectAllPaths,
+  selectDeletedPaths,
+} from "../../../../application/selectors/paths.selectors";
 import { pendingJobStorage, type PendingJob } from "../../../../infrastructure/storage/async-storage";
 
 import type { LearningPath } from "../../../../domain/entities/path.entity";
@@ -44,15 +54,21 @@ interface PathCardProps {
   theme: ThemeColors;
   onMenu: (pathId: string, title: string, status: string) => void;
   archived?: boolean;
+  deleted?: boolean;
 }
 
-const PathCard = React.memo(({ path, theme, onMenu, archived = false }: PathCardProps) => {
+const PathCard = React.memo(({ path, theme, onMenu, archived = false, deleted = false }: PathCardProps) => {
   const progress = getPathProgressPercent(path);
+  const dimmed = archived || deleted;
   return (
     <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() => router.push({ pathname: "/(protected)/path-detail", params: { pathId: path.id } })}
-      style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }, archived && s.cardArchived]}
+      activeOpacity={deleted ? 1 : 0.7}
+      onPress={
+        deleted
+          ? () => onMenu(path.id, path.title, path.status)
+          : () => router.push({ pathname: "/(protected)/path-detail", params: { pathId: path.id } })
+      }
+      style={[s.card, { backgroundColor: theme.surface, borderColor: theme.border }, dimmed && s.cardArchived]}
     >
       <View style={s.cardTop}>
         <View style={s.cardInfo}>
@@ -60,7 +76,7 @@ const PathCard = React.memo(({ path, theme, onMenu, archived = false }: PathCard
             variant="smallSubtitle"
             weight="600"
             numberOfLines={1}
-            color={archived ? theme.textMuted : theme.textPrimary}
+            color={dimmed ? theme.textMuted : theme.textPrimary}
           >
             {path.title}
           </AppText>
@@ -89,10 +105,10 @@ const PathCard = React.memo(({ path, theme, onMenu, archived = false }: PathCard
         <View style={s.xpRow}>
           <Star
             size={11}
-            color={archived ? theme.textMuted : theme.success}
-            fill={archived ? theme.textMuted : theme.success}
+            color={dimmed ? theme.textMuted : theme.success}
+            fill={dimmed ? theme.textMuted : theme.success}
           />
-          <AppText variant="verySmall" color={archived ? theme.textMuted : theme.success} weight="600">
+          <AppText variant="verySmall" color={dimmed ? theme.textMuted : theme.success} weight="600">
             {" "}
             {path.earnedXp} XP
           </AppText>
@@ -107,12 +123,15 @@ const AllPaths = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const paths = useAppSelector(selectAllPaths);
+  const deletedPaths = useAppSelector(selectDeletedPaths);
 
   const [banner, setBanner] = useState<PendingBannerState>(null);
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [deletedOpen, setDeletedOpen] = useState(false);
 
   const activePaths = useMemo(() => paths.filter((p) => p.status !== "archived"), [paths]);
   const archivedPaths = useMemo(() => paths.filter((p) => p.status === "archived"), [paths]);
+  const deletedIds = useMemo(() => new Set(deletedPaths.map((p) => p.id)), [deletedPaths]);
 
   const iconScale = useSharedValue(1);
   useEffect(() => {
@@ -150,7 +169,7 @@ const AllPaths = () => {
         status: "generating",
         job: stored,
         progress: job.progress ?? 0,
-        label: job.progressLabel ?? "Generando curso...",
+        label: job.progressLabel ?? "Generando ruta...",
       });
     }
   }, [dispatch]);
@@ -161,6 +180,19 @@ const AllPaths = () => {
   }, [dispatch, checkPendingJob]);
 
   const handleMenu = (pathId: string, title: string, status: string) => {
+    if (deletedIds.has(pathId)) {
+      Alert.alert(
+        title,
+        "Esta ruta está en Eliminadas.",
+        [
+          { text: "Restaurar", onPress: () => dispatch(restorePath(pathId)) },
+          { text: "Cancelar", style: "cancel" },
+        ],
+        { cancelable: true },
+      );
+      return;
+    }
+
     Alert.alert(
       title,
       undefined,
@@ -176,7 +208,7 @@ const AllPaths = () => {
           text: "Eliminar",
           style: "destructive",
           onPress: () =>
-            Alert.alert("Eliminar ruta", "Esta acción no se puede deshacer.", [
+            Alert.alert("Eliminar ruta", "Podrás recuperarla desde Eliminadas.", [
               { text: "Cancelar", style: "cancel" },
               { text: "Eliminar", style: "destructive", onPress: () => dispatch(deletePath(pathId)) },
             ]),
@@ -217,7 +249,7 @@ const AllPaths = () => {
           </Animated.View>
           <View style={s.bannerBody}>
             <AppText variant="verySmall" color={theme.primary} weight="700">
-              Generando tu curso...
+              Generando tu ruta...
             </AppText>
             <AppText variant="verySmall" color={theme.primary} numberOfLines={1}>
               {banner.job.topic}
@@ -250,7 +282,7 @@ const AllPaths = () => {
           <CheckCircle2 size={16} color={theme.success} />
           <View style={s.bannerBody}>
             <AppText variant="verySmall" color={theme.success} weight="700">
-              ¡Curso listo!
+              ¡Ruta lista!
             </AppText>
             <AppText variant="verySmall" muted numberOfLines={1}>
               {banner.topic}
@@ -323,6 +355,30 @@ const AllPaths = () => {
             {archivedOpen &&
               archivedPaths.map((path) => (
                 <PathCard key={path.id} path={path} theme={theme} onMenu={handleMenu} archived />
+              ))}
+          </>
+        )}
+
+        {deletedPaths.length > 0 && (
+          <>
+            <TouchableOpacity
+              style={[s.archivedToggle, { borderColor: theme.border }]}
+              onPress={() => setDeletedOpen((v) => !v)}
+              activeOpacity={0.7}
+            >
+              <Trash2 size={14} color={theme.textMuted} />
+              <AppText variant="verySmall" muted weight="600">
+                Eliminadas ({deletedPaths.length})
+              </AppText>
+              <ChevronLeft
+                size={14}
+                color={theme.textMuted}
+                style={{ transform: [{ rotate: deletedOpen ? "90deg" : "-90deg" }], marginLeft: "auto" }}
+              />
+            </TouchableOpacity>
+            {deletedOpen &&
+              deletedPaths.map((path) => (
+                <PathCard key={path.id} path={path} theme={theme} onMenu={handleMenu} deleted />
               ))}
           </>
         )}

@@ -19,6 +19,7 @@ import { generatePath, fetchPathJob } from "../../../../application/thunks/paths
 import { pendingJobStorage } from "../../../../infrastructure/storage/async-storage";
 import { useSoundEffect } from "../../../../infrastructure/sound/useSoundEffect";
 import type { PathMode } from "../../../../domain/entities/path.entity";
+import { RETRY_MESSAGE } from "../../../../shared/messages";
 
 const POLL_INTERVAL = 4000;
 
@@ -98,7 +99,7 @@ const PathGenerating = () => {
       stopPolling();
       pendingJobStorage.clear();
       setFailed(true);
-      setLabel("Error al generar la ruta. Intentá de nuevo.");
+      setLabel(`Error al generar la ruta. ${RETRY_MESSAGE}`);
     }
   };
 
@@ -190,7 +191,7 @@ const PathGenerating = () => {
           <View style={[s.hintBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Info size={14} color={theme.textMuted} />
             <AppText variant="verySmall" muted style={s.hintText}>
-              Podés cerrar la app. Tu curso seguirá generándose y lo encontrarás listo en{" "}
+              Puedes cerrar la app. Tu ruta seguirá generándose y la encontrarás lista en{" "}
               <AppText variant="verySmall" color={theme.primary} weight="600">Mis Rutas</AppText>
               {" "}cuando vuelvas.
             </AppText>

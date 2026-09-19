@@ -383,7 +383,7 @@ const Tutor: React.FC = () => {
           {messages.length === 0 && !isLoading && (
             <ChatBubble
               role="model"
-              text="¡Hola! Soy tu tutor socrático. Estoy acá para ayudarte a pensar, no solo a responder. ¿Qué querés aprender o entender mejor hoy?"
+              text="¡Hola! Soy tu tutor socrático. Estoy aquí para ayudarte a pensar, no solo a responder. ¿Qué quieres aprender o entender mejor hoy?"
             />
           )}
           {messages.map((msg) => (
@@ -411,8 +411,8 @@ const Tutor: React.FC = () => {
               <AlertCircle size={14} color={theme.primary} />
               <AppText variant="verySmall" color={theme.primary} weight="600" style={styles.premiumBannerText}>
                 {trialExhausted
-                  ? "Prueba gratuita agotada en este dispositivo — suscribite a Prémium para seguir"
-                  : `Cupo de tutor agotado${tutorRequestLimit != null ? ` (${tutorRequestLimit} mensajes)` : ""} — suscribite a Prémium para seguir`}
+                  ? "Prueba gratuita agotada en este dispositivo — suscríbete a Prémium para seguir"
+                  : `Cupo de tutor agotado${tutorRequestLimit != null ? ` (${tutorRequestLimit} mensajes)` : ""} — suscríbete a Prémium para seguir`}
               </AppText>
             </TouchableOpacity>
           )}

@@ -26,6 +26,7 @@ import {
   isGoogleDeveloperError,
 } from '../../../infrastructure/auth/google-signin.utils';
 import { API_BASE_URL } from '../../../config/environment/api.config';
+import { RETRY_MESSAGE } from '../../../shared/messages';
 
 let GoogleSignin: any = null;
 let isErrorWithCode: (e: unknown) => e is { code: string } = (_e): _e is { code: string } => false;
@@ -61,7 +62,7 @@ export function LoginScreen() {
     if (!webClientId) {
       Alert.alert(
         'Configuración faltante',
-        'Definí EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID en ico-app/.env y reiniciá Metro.',
+        'Define EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID en ico-app/.env y reinicia Metro.',
       );
       return;
     }
@@ -75,7 +76,7 @@ export function LoginScreen() {
       if (!idToken) {
         Alert.alert(
           'Error',
-          'Google no devolvió un token. Verificá el web client ID y, en iOS, EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME en .env.',
+          'Google no devolvió un token. Verifica el web client ID y, en iOS, EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME en .env.',
         );
         return;
       }
@@ -120,7 +121,7 @@ export function LoginScreen() {
     } catch (err: unknown) {
       const e = err as { code?: string };
       if (e.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Error', 'No se pudo iniciar sesión con Apple. Intentá de nuevo.');
+        Alert.alert('Error', `No se pudo iniciar sesión con Apple. ${RETRY_MESSAGE}`);
       }
     } finally {
       setLoading(false);

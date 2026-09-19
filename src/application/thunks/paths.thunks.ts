@@ -34,7 +34,8 @@ export const fetchPaths = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     const state = getState() as RootState;
     if (!state.connectivity.isOnline) return rejectWithValue('offline');
-    return pathApiRepository.getAll();
+    // Deleted paths are kept so the trash section can list and restore them.
+    return pathApiRepository.getAll(true);
   },
 );
 
@@ -150,14 +151,29 @@ export const fetchPathJob = createAsyncThunk(
 
 export const updatePath = createAsyncThunk(
   'paths/update',
-  async ({ id, ...dto }: { id: string } & UpdatePathDto) =>
-    pathApiRepository.update(id, dto),
+  async ({ id, ...dto }: { id: string } & UpdatePathDto, { getState, rejectWithValue }) => {
+    const state = getState() as RootState;
+    if (!state.connectivity.isOnline) return rejectWithValue('offline');
+    return pathApiRepository.update(id, dto);
+  },
 );
 
 export const deletePath = createAsyncThunk(
   'paths/delete',
-  async (id: string) => {
+  async (id: string, { getState, rejectWithValue }) => {
+    const state = getState() as RootState;
+    if (!state.connectivity.isOnline) return rejectWithValue('offline');
     await pathApiRepository.delete(id);
+    return { id, deletedAt: new Date().toISOString() };
+  },
+);
+
+export const restorePath = createAsyncThunk(
+  'paths/restore',
+  async (id: string, { getState, rejectWithValue }) => {
+    const state = getState() as RootState;
+    if (!state.connectivity.isOnline) return rejectWithValue('offline');
+    await pathApiRepository.restore(id);
     return id;
   },
 );

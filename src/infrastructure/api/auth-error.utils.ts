@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { RETRY_MESSAGE } from '../../shared/messages';
 
 export type LinkProvider = 'google' | 'apple';
 
@@ -61,7 +62,7 @@ export function getLinkAccountErrorMessage(err: unknown, provider: LinkProvider)
   if (isProviderAlreadyLinkedError(err)) {
     return (
       `Esta cuenta de ${providerLabel} ya está vinculada a otra cuenta en Ico.\n\n` +
-      `Para acceder a ella, cerrá sesión e iniciá con ${providerLabel}. ` +
+      `Para acceder a ella, cierra sesión e inicia con ${providerLabel}. ` +
       `El progreso de tu cuenta invitado no se puede fusionar automáticamente.`
     );
   }
@@ -69,36 +70,36 @@ export function getLinkAccountErrorMessage(err: unknown, provider: LinkProvider)
   const parsed = parseApiError(err);
   if (parsed.message && parsed.message !== 'Error desconocido') {
     if (parsed.message.includes('No ID token')) {
-      return 'No se recibió token de Google. Verificá EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID y el plugin de Google Sign-In en app.config.';
+      return 'No se recibió token de Google. Verifica EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID y el plugin de Google Sign-In en app.config.';
     }
     if (parsed.status === 401) {
-      return 'Google rechazó el token. Verificá que GOOGLE_CLIENT_ID del backend coincida con el web client ID de la app.';
+      return 'Google rechazó el token. Verifica que GOOGLE_CLIENT_ID del backend coincida con el web client ID de la app.';
     }
     return parsed.message;
   }
 
-  return `No se pudo vincular la cuenta de ${providerLabel}. Intentá de nuevo.`;
+  return `No se pudo vincular la cuenta de ${providerLabel}. ${RETRY_MESSAGE}`;
 }
 
 export function getAuthErrorMessage(err: unknown): string {
   const parsed = parseApiError(err);
 
   if (!parsed.status && parsed.message.includes('Network Error')) {
-    return 'No se pudo conectar con el servidor. Verificá que el backend esté corriendo y la URL de API en .env.';
+    return 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo y la URL de API en .env.';
   }
 
   if (parsed.status === 401) {
-    return 'Google rechazó el token. Verificá que GOOGLE_CLIENT_ID del backend coincida con el web client ID de la app.';
+    return 'Google rechazó el token. Verifica que GOOGLE_CLIENT_ID del backend coincida con el web client ID de la app.';
   }
 
   if (parsed.message && parsed.message !== 'Error desconocido') {
     if (parsed.message.includes('No ID token')) {
-      return 'No se recibió token de Google. Verificá EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID y el plugin de Google Sign-In en app.config.';
+      return 'No se recibió token de Google. Verifica EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID y el plugin de Google Sign-In en app.config.';
     }
     return parsed.message;
   }
 
-  return 'No se pudo iniciar sesión con Google. Intentá de nuevo.';
+  return `No se pudo iniciar sesión con Google. ${RETRY_MESSAGE}`;
 }
 
 export function getDeleteAccountErrorMessage(err: unknown, isGuest: boolean): string {
@@ -106,8 +107,8 @@ export function getDeleteAccountErrorMessage(err: unknown, isGuest: boolean): st
 
   if (parsed.status === 403) {
     return isGuest
-      ? 'No se pudieron borrar tus datos de invitado. Intentá de nuevo más tarde.'
-      : 'No tenés permiso para eliminar esta cuenta.';
+      ? 'No se pudieron borrar tus datos de invitado. Inténtalo de nuevo más tarde.'
+      : 'No tienes permiso para eliminar esta cuenta.';
   }
 
   if (parsed.message && parsed.message !== 'Error desconocido' && !parsed.message.match(/status code \d{3}/i)) {
@@ -115,6 +116,6 @@ export function getDeleteAccountErrorMessage(err: unknown, isGuest: boolean): st
   }
 
   return isGuest
-    ? 'No se pudieron borrar tus datos de invitado. Intentá de nuevo.'
-    : 'No se pudo eliminar la cuenta. Intentá de nuevo.';
+    ? `No se pudieron borrar tus datos de invitado. ${RETRY_MESSAGE}`
+    : `No se pudo eliminar la cuenta. ${RETRY_MESSAGE}`;
 }

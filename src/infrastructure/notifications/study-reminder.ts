@@ -31,7 +31,7 @@ export async function scheduleStudyReminder(): Promise<boolean> {
     identifier: NOTIFICATION_ID_KEY,
     content: {
       title: '📚 Hora de estudiar',
-      body: 'Mantené tu racha activa. ¡Unos minutos al día marcan la diferencia!',
+      body: 'Mantén tu racha activa. ¡Unos minutos al día marcan la diferencia!',
       sound: true,
     },
     trigger: {

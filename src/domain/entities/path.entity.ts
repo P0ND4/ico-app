@@ -15,6 +15,7 @@ export interface LearningPath {
   chapterCount: number;
   completedChapterCount: number;
   createdAt: string;
+  deletedAt: string | null;
   chapters?: Chapter[];
 }
 

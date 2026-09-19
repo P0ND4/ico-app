@@ -146,22 +146,22 @@ const PaywallContent = ({
     !currentUserPlan.isUnlimited;
   const planNamesLabel = upgradePlans.map((p) => p.label).join(" y ");
   const heroTitle = isVip
-    ? "Sos usuario VIP"
+    ? "Eres usuario VIP"
     : hasUnlimitedAccess
-      ? "¡Ya tenés acceso completo!"
+      ? "¡Ya tienes acceso completo!"
       : hasPaidPlan
-        ? "Mejorá tu plan"
-        : "Elegí tu plan";
+        ? "Mejora tu plan"
+        : "Elige tu plan";
   const heroSubtitle = isVip
     ? "Acceso ilimitado a rutas, tutor IA, resúmenes y más — sin restricciones."
     : hasUnlimitedAccess
-      ? "Disfrutá de todas las funciones sin límites en tu plan actual."
+      ? "Disfruta de todas las funciones sin límites en tu plan actual."
       : hasPaidPlan
         ? planNamesLabel
-          ? `Pasá a ${planNamesLabel} y desbloqueá más beneficios.`
-          : "Explorá las opciones para ampliar tu acceso."
+          ? `Pasa a ${planNamesLabel} y desbloquea más beneficios.`
+          : "Explora las opciones para ampliar tu acceso."
         : planNamesLabel
-          ? `Deslizá para comparar ${planNamesLabel}. Rutas, tutor IA y resúmenes según el plan.`
+          ? `Desliza para comparar ${planNamesLabel}. Rutas, tutor IA y resúmenes según el plan.`
           : "Rutas, tutor IA y resúmenes según el plan.";
 
   const selectedPlan = useMemo(() => {
@@ -199,7 +199,7 @@ const PaywallContent = ({
     Linking.openURL(`mailto:soporte@ico.app?subject=${subject}&body=${body}`).catch(() => {
       Alert.alert(
         "Contacto",
-        `Escribinos a soporte@ico.app para activar tu suscripción ${selectedPlan.label}.`,
+        `Escríbenos a soporte@ico.app para activar tu suscripción ${selectedPlan.label}.`,
       );
     });
   };
@@ -273,7 +273,7 @@ const PaywallContent = ({
                 Acceso VIP activo
               </AppText>
               <AppText variant="smallParagraph" muted align="center">
-                No necesitás suscribirte a ningún plan. Todas las funciones están desbloqueadas para tu cuenta.
+                No necesitas suscribirte a ningún plan. Todas las funciones están desbloqueadas para tu cuenta.
               </AppText>
             </View>
           ) : (
@@ -294,13 +294,13 @@ const PaywallContent = ({
               <Crown size={28} color={theme.primary} />
               <AppText variant="smallSubtitle" weight="700" align="center">
                 {hasUnlimitedAccess
-                  ? "Tenés el plan más completo"
+                  ? "Tienes el plan más completo"
                   : "No hay planes superiores disponibles"}
               </AppText>
               <AppText variant="smallParagraph" muted align="center">
                 {currentUserPlan?.label
                   ? `Tu plan actual: ${currentUserPlan.label}`
-                  : "Contactanos si querés cambiar tu suscripción."}
+                  : "Contáctanos si quieres cambiar tu suscripción."}
               </AppText>
               {showCurrentPlanRenewal && currentUserPlan ? (
                 <QuotaRenewalChip
@@ -390,7 +390,7 @@ const PaywallContent = ({
                   weight="700"
                   color={billing === "annual" ? theme.primary : "#FFFFFF"}
                 >
-                  {discountLabel ? `Ahorrá ${discountLabel}` : "Recomendado"}
+                  {discountLabel ? `Ahorra ${discountLabel}` : "Recomendado"}
                 </AppText>
               </View>
               <AppText
@@ -433,7 +433,7 @@ const PaywallContent = ({
           </View>
 
           <AppText variant="verySmall" muted align="center" style={s.trustLine}>
-            Activación por email · Cancelá cuando quieras
+            Activación por email · Cancela cuando quieras
           </AppText>
           </>
           ) : null}

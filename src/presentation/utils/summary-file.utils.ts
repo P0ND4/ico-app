@@ -34,10 +34,10 @@ export function getSummaryFileValidationMessage(name: string): string | null {
   const ext = name.split('.').pop()?.toLowerCase();
   if (!ext) return 'No se pudo identificar el tipo de archivo.';
   if (ext === 'epub') {
-    return 'EPUB no está soportado. Exportá el libro como PDF e intentá de nuevo.';
+    return 'EPUB no está soportado. Exporta el libro como PDF e inténtalo de nuevo.';
   }
   if (!SUPPORTED_EXTENSIONS.has(ext)) {
-    return 'Formato no soportado. Usá PDF, DOCX o TXT.';
+    return 'Formato no soportado. Usa PDF, DOCX o TXT.';
   }
   return null;
 }
@@ -47,14 +47,14 @@ export function getSummaryUploadErrorMessage(err: unknown): string {
     const data = err.response?.data as { message?: string } | undefined;
     const msg = typeof data?.message === 'string' ? data.message : '';
     if (msg.toLowerCase().includes('unsupported')) {
-      return 'Formato no soportado. Usá PDF, DOCX o TXT.';
+      return 'Formato no soportado. Usa PDF, DOCX o TXT.';
     }
     if (err.code === 'ECONNABORTED') {
-      return 'El archivo tardó demasiado en procesarse. Probá con un PDF más corto.';
+      return 'El archivo tardó demasiado en procesarse. Prueba con un PDF más corto.';
     }
     if (err.response?.status === 413) {
       return 'El archivo es demasiado grande.';
     }
   }
-  return 'No se pudo procesar el archivo. Verificá que sea PDF, DOCX o TXT.';
+  return 'No se pudo procesar el archivo. Verifica que sea PDF, DOCX o TXT.';
 }

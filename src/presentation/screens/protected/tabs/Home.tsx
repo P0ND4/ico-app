@@ -149,7 +149,7 @@ const Home = () => {
               Prueba gratuita agotada en este dispositivo
             </AppText>
             <AppText variant="verySmall" color={theme.accent}>
-              Tocá para ver planes Prémium
+              Toca para ver planes Prémium
             </AppText>
           </TouchableOpacity>
         )}
@@ -220,7 +220,7 @@ const Home = () => {
                 Estás usando una cuenta de invitado
               </AppText>
               <AppText variant="verySmall" muted>
-                Vinculá tu cuenta para no perder tu progreso →
+                Vincula tu cuenta para no perder tu progreso →
               </AppText>
             </View>
           </TouchableOpacity>
@@ -385,7 +385,7 @@ const Home = () => {
               Sin rutas activas
             </AppText>
             <AppText variant="smallParagraph" muted align="center" style={s.mt4}>
-              Creá tu primera ruta de aprendizaje y empezá hoy.
+              Crea tu primera ruta de aprendizaje y empieza hoy.
             </AppText>
             <TouchableOpacity
               activeOpacity={0.7}

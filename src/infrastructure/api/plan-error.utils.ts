@@ -53,7 +53,7 @@ export function showPaywallModal(featureBlocked?: string): void {
     if (selectIsVip(store.getState())) {
       Alert.alert(
         'Acceso VIP',
-        'Como usuario VIP tenés acceso completo sin restricciones.',
+        'Como usuario VIP tienes acceso completo sin restricciones.',
       );
       return;
     }

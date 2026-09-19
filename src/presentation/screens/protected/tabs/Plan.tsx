@@ -43,6 +43,7 @@ import {
   selectPomodoroPresets,
   selectTimerState,
 } from "../../../../application/selectors/plan.selectors";
+import { RETRY_MESSAGE } from "../../../../shared/messages";
 
 LocaleConfig.locales.es = {
   monthNames: [
@@ -200,7 +201,7 @@ const Plan = () => {
       await dispatch(deleteTask(id)).unwrap();
       dispatch(fetchTaskDates());
     } catch {
-      Alert.alert("Error", "No se pudo eliminar la tarea. Intentá de nuevo.");
+      Alert.alert("Error", `No se pudo eliminar la tarea. ${RETRY_MESSAGE}`);
     }
   };
 
@@ -400,7 +401,7 @@ const Plan = () => {
                       setNewTaskTitle("");
                       setNewTaskTime("");
                     } catch {
-                      Alert.alert("Error", "No se pudo guardar la tarea. Intentá de nuevo.");
+                      Alert.alert("Error", `No se pudo guardar la tarea. ${RETRY_MESSAGE}`);
                     }
                   }}
                 >
