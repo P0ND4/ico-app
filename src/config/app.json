@@ -3,7 +3,7 @@
     "name": "ico",
     "slug": "ico",
     "scheme": "ico",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./src/presentation/assets/icon.png",
     "userInterfaceStyle": "automatic",
