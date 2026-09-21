@@ -1,11 +1,13 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Alert, Animated, Modal, Dimensions } from "react-native";
+import React, { useState, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Alert, Animated, Modal, Dimensions, KeyboardAvoidingView, Platform } from "react-native";
+import { BottomTabBarHeightContext } from "@react-navigation/bottom-tabs";
 import type { ViewStyle } from "react-native";
 import { exportConversationAsPdf } from "../../../../infrastructure/export/tutor-pdf";
 import { Bot, Send, AlertCircle, Download, Trash2, WifiOff, Menu, X, Plus, MessageSquare, Pencil, Check } from "lucide-react-native";
 import { useFocusEffect } from "expo-router";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import AppContainer from "../../../components/ui/layout/AppContainer";
+import { TAB_SCREEN_EDGES } from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
 import ChatBubble from "../../../components/ui/cards/ChatBubble";
 import TypingIndicator from "../../../components/ui/feedback/TypingIndicator";
@@ -317,8 +319,20 @@ const Tutor: React.FC = () => {
     [theme.surface, theme.border, theme.textPrimary],
   );
 
+  // Read, never required: useBottomTabBarHeight() throws outside a tab navigator, and this
+  // screen must keep rendering if it is ever pushed somewhere else. Without the offset the
+  // avoider lifts the box by the full keyboard height and the input floats above the bar.
+  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0;
+
   return (
-    <AppContainer style={styles.container}>
+    <AppContainer edges={TAB_SCREEN_EDGES} style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        // iOS gets padding; on Android the manifest's adjustResize already moves the window,
+        // and adding a second avoider there fights it.
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={tabBarHeight}
+      >
       <View style={[styles.chatBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         {/* Header Bar */}
         <View style={headerStyle}>
@@ -448,6 +462,7 @@ const Tutor: React.FC = () => {
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
       <Modal visible={isHistoryOpen} transparent animationType="none" onRequestClose={closeHistory}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.overlayDismiss} activeOpacity={1} onPress={closeHistory} />
@@ -554,6 +569,9 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     paddingTop: 20,
+  },
+  flex: {
+    flex: 1,
   },
   chatBox: {
     flex: 1,

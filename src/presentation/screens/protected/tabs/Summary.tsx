@@ -16,6 +16,7 @@ import { FileText, Wand2, Lightbulb, Copy, Check, HelpCircle, Paperclip, X, Aler
 import RichMarkdownView from "../../../components/ui/typography/RichMarkdownView";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import AppContainer from "../../../components/ui/layout/AppContainer";
+import { TAB_SCREEN_EDGES } from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
 import AppButton from "../../../components/ui/buttons/AppButton";
 import GlassCard from "../../../components/ui/cards/GlassCard";
@@ -257,7 +258,7 @@ const Summary: React.FC = () => {
   const summaryText = activeSummary?.summaryText ?? "";
 
   return (
-    <AppContainer style={styles.container}>
+    <AppContainer edges={TAB_SCREEN_EDGES} style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

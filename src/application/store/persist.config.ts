@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createTransform } from 'redux-persist';
 import type { AuthState } from '../slices/auth.slice';
 import type { PlanState } from '../slices/plan.slice';
+import type { CouponsState } from '../slices/coupons.slice';
 
 const authTransform = createTransform<AuthState, Omit<AuthState, 'sessionReady'>>(
   (inboundState) => {
@@ -31,10 +32,24 @@ const planTransform = createTransform<PlanState, Omit<PlanState, 'timerRunning' 
   { whitelist: ['plan'] },
 );
 
+// Persist only the redemption history: a stale error or a hung 'redeeming'
+// status must never survive a restart.
+const couponsTransform = createTransform<CouponsState, Pick<CouponsState, 'redemptions'>>(
+  (inboundState) => ({ redemptions: inboundState.redemptions }),
+  (outboundState) => ({
+    redemptions: outboundState.redemptions ?? [],
+    historyStatus: 'idle',
+    redeemStatus: 'idle',
+    error: null,
+    lastRedeemed: null,
+  }),
+  { whitelist: ['coupons'] },
+);
+
 export const persistConfig = {
   key: 'root',
   version: 1,
   storage: AsyncStorage,
-  whitelist: ['auth', 'user', 'paths', 'catalog', 'plan', 'offlineQueue'],
-  transforms: [authTransform, planTransform],
+  whitelist: ['auth', 'user', 'paths', 'catalog', 'plan', 'offlineQueue', 'coupons'],
+  transforms: [authTransform, planTransform, couponsTransform],
 };

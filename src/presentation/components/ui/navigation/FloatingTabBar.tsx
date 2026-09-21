@@ -45,7 +45,12 @@ const FloatingTabBar: React.FC<FloatingTabBarProps> = ({
       style={[
         styles.safeWrapper,
         {
-          paddingBottom: Math.max(insets.bottom, 10),
+          // insets.bottom + a gap, never Math.max of the two. They answer different
+          // questions: the inset is how much of the screen the system gesture area eats,
+          // the gap is how far a floating pill should sit off the edge. Taking the larger
+          // means that on a phone whose inset already exceeds the gap the pill gets NO
+          // breathing room at all and lands against the bottom of the screen.
+          paddingBottom: insets.bottom + BOTTOM_GAP,
           backgroundColor: theme.background,
         },
       ]}
@@ -120,9 +125,22 @@ const FloatingTabBar: React.FC<FloatingTabBarProps> = ({
   );
 };
 
+/**
+ * Visual breathing room under the pill, on top of whatever the system reserves.
+ *
+ * It has to carry the whole gap on its own wherever the system reserves nothing — an
+ * emulator, or a phone with hardware keys, both report insets.bottom = 0 — so this is the
+ * number to move if the bar ever reads too tight or too loose.
+ */
+const BOTTOM_GAP = 22;
+
+/** Air between the last thing the screen drew and the top of the pill. */
+const TOP_GAP = 24;
+
 const styles = StyleSheet.create({
   safeWrapper: {
     paddingHorizontal: 16,
+    paddingTop: TOP_GAP,
   },
   pill: {
     flexDirection: "row",

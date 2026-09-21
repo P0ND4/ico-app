@@ -15,6 +15,8 @@ import {
   Crown,
   Gem,
   Zap,
+  Ticket,
+  ChevronRight,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
@@ -300,6 +302,29 @@ const Profile = () => {
           </GlassCard>
         </View>
 
+        {/* Coupons */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => router.push("/(protected)/coupons")}
+        >
+          <GlassCard padding={16} style={s.section}>
+            <View style={s.couponRow}>
+              <View style={[s.couponIcon, { backgroundColor: `${theme.primary}18` }]}>
+                <Ticket size={20} color={theme.primary} />
+              </View>
+              <View style={s.couponInfo}>
+                <AppText variant="smallParagraph" weight="600">
+                  Cupones
+                </AppText>
+                <AppText variant="verySmall" muted>
+                  Canjea un código y suma cupos o beneficios
+                </AppText>
+              </View>
+              <ChevronRight size={18} color={theme.textMuted} />
+            </View>
+          </GlassCard>
+        </TouchableOpacity>
+
         {/* Edit profile */}
         <GlassCard padding={20} style={s.section}>
           <AppText variant="smallSubtitle" weight="600" style={s.sectionTitle}>
@@ -429,6 +454,15 @@ const s = StyleSheet.create({
   statValue: { marginTop: 10, marginBottom: 2 },
   section: { marginBottom: 16 },
   sectionTitle: { marginBottom: 14 },
+  couponRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  couponIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  couponInfo: { flex: 1, gap: 2 },
   input: { marginBottom: 12 },
   saveBtn: { borderRadius: 14 },
   linkSection: { marginBottom: 4 },

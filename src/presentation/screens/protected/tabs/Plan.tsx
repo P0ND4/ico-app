@@ -12,6 +12,7 @@ import {
 import { Calendar, LocaleConfig } from "react-native-calendars";
 import type { DateData } from "react-native-calendars";
 import AppContainer from "../../../components/ui/layout/AppContainer";
+import { TAB_SCREEN_EDGES } from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
 import AppButton from "../../../components/ui/buttons/AppButton";
 import AppInput from "../../../components/ui/inputs/AppInput";
@@ -255,7 +256,7 @@ const Plan = () => {
         : "00:00";
 
   return (
-    <AppContainer style={s.container}>
+    <AppContainer edges={TAB_SCREEN_EDGES} style={s.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.scrollContent}

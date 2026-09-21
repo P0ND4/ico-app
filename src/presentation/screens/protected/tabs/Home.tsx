@@ -16,6 +16,7 @@ import {
 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
 import AppContainer from "../../../components/ui/layout/AppContainer";
+import { TAB_SCREEN_EDGES } from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
 import GlassCard from "../../../components/ui/cards/GlassCard";
 import ProgressBar from "../../../components/ui/feedback/ProgressBar";
@@ -137,7 +138,7 @@ const Home = () => {
   });
 
   return (
-    <AppContainer style={s.container}>
+    <AppContainer edges={TAB_SCREEN_EDGES} style={s.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {trialExhausted && (
           <TouchableOpacity

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { View, ScrollView, TouchableOpacity, StyleSheet, Alert, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { View, ScrollView, TouchableOpacity, StyleSheet, Alert, TextInput, ActivityIndicator, Modal } from "react-native";
 import type { ViewStyle } from "react-native";
 import Animated, {
   useSharedValue,
@@ -12,6 +12,7 @@ import { X, CheckCircle, XCircle, Bot, Send } from "lucide-react-native";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useKeyboardHeight } from "../../../hooks/useKeyboardHeight";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import type { Lesson } from "../../../../domain/entities/path.entity";
 import type { ThemeColors } from "../../../../config/theme.config";
@@ -244,6 +245,7 @@ const OpenEndedLesson: React.FC<OEProps> = ({ lesson, theme, answer, onChangeAns
 const ChapterContent = () => {
   const theme = useThemeColors();
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const dispatch = useAppDispatch();
   const { pathId, chapterId } = useLocalSearchParams<{ pathId: string; chapterId: string }>();
   const navigation = useNavigation();
@@ -599,10 +601,7 @@ const ChapterContent = () => {
         presentationStyle="pageSheet"
         onRequestClose={() => setTutorOpen(false)}
       >
-        <KeyboardAvoidingView
-          style={[s.tutorModal, { backgroundColor: theme.background }]}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <View style={[s.tutorModal, { backgroundColor: theme.background }]}>
           <View style={[s.tutorHeader, { borderBottomColor: theme.border, paddingTop: insets.top + 8 }]}>
             <View style={s.tutorHeaderTitle}>
               <Bot size={20} color={theme.primary} />
@@ -630,7 +629,19 @@ const ChapterContent = () => {
             )}
           </ScrollView>
 
-          <View style={[s.tutorInputBar, { borderTopColor: theme.border, paddingBottom: insets.bottom + 8 }]}>
+          <View
+            style={[
+              s.tutorInputBar,
+              {
+                borderTopColor: theme.border,
+                // The home-indicator inset only needs paying while the bar really sits at
+                // the bottom. Once the keyboard covers that strip, keeping it would leave a
+                // dead band between the input and the keys.
+                paddingBottom: keyboardHeight > 0 ? 8 : insets.bottom + 8,
+                marginBottom: keyboardHeight,
+              },
+            ]}
+          >
             <TextInput
               value={tutorQuestion}
               onChangeText={setTutorQuestion}
@@ -651,7 +662,7 @@ const ChapterContent = () => {
               <Send size={18} color="#fff" />
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <PaywallModal

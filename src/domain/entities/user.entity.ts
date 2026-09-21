@@ -26,6 +26,15 @@ export interface User {
   deepPathLimit?: number | null;
   quotaRenewsAt?: string | null;
   trialExhausted?: boolean;
+  // Coupon-granted access. Optional: added by the coupon feature, may be absent
+  // on older backends. `trialXxxRemaining` above already includes the bonus.
+  vipExpiresAt?: string | null;
+  planExpiresAt?: string | null;
+  hasQuotaBonus?: boolean;
+  bonusTutorRemaining?: number | null;
+  bonusSummaryRemaining?: number | null;
+  bonusStandardPathRemaining?: number | null;
+  bonusDeepPathRemaining?: number | null;
   themeMode?: string;
   learningStyle?: string | null;
   coursePreferences?: string | null;

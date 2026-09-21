@@ -5,6 +5,7 @@ import { Route, Sparkles, AlertCircle } from "lucide-react-native";
 import { router } from "expo-router";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import AppContainer from "../../../components/ui/layout/AppContainer";
+import { TAB_SCREEN_EDGES } from "../../../components/ui/layout/AppContainer";
 import AppText from "../../../components/ui/typography/AppText";
 import AppButton from "../../../components/ui/buttons/AppButton";
 import AppInput from "../../../components/ui/inputs/AppInput";
@@ -87,7 +88,7 @@ const LearningPath: React.FC = () => {
   );
 
   return (
-    <AppContainer style={{ padding: 0 }}>
+    <AppContainer edges={TAB_SCREEN_EDGES} style={{ padding: 0 }}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

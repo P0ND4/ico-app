@@ -9,6 +9,7 @@ import catalogReducer from '../slices/catalog.slice';
 import connectivityReducer from '../slices/connectivity.slice';
 import paywallReducer from '../slices/paywall.slice';
 import offlineQueueReducer from '../slices/offline-queue.slice';
+import couponsReducer from '../slices/coupons.slice';
 
 export const rootReducer = combineReducers({
   auth: authReducer,
@@ -21,4 +22,5 @@ export const rootReducer = combineReducers({
   connectivity: connectivityReducer,
   paywall: paywallReducer,
   offlineQueue: offlineQueueReducer,
+  coupons: couponsReducer,
 });

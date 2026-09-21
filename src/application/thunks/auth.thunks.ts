@@ -7,6 +7,9 @@ import { fetchProfile, fetchStats } from './user.thunks';
 import { fetchPaths } from './paths.thunks';
 import type { RootState } from '../store/index';
 import { parseApiError } from '../../infrastructure/api/auth-error.utils';
+import { refreshSession, RefreshAuthError } from '../../infrastructure/api/token-refresh';
+import { selectIsOnline } from '../selectors/connectivity.selectors';
+import type { AuthResponse } from '../../domain/entities/auth.entity';
 
 function loadUserBootstrapData(dispatch: (action: unknown) => unknown) {
   return Promise.all([dispatch(fetchProfile()), dispatch(fetchStats()), dispatch(fetchPaths())]);
@@ -59,18 +62,18 @@ export const restoreAuthSession = createAsyncThunk(
   'auth/restoreSession',
   async (_, { dispatch, getState }) => {
     try {
-      const refreshToken = await secureStorage.getRefreshToken();
       const { auth } = getState() as RootState;
+      const hasStoredSession = (await secureStorage.getRefreshToken()) !== null;
 
-      if (!refreshToken) {
+      if (!hasStoredSession) {
         if (auth.isAuthenticated) {
           dispatch(logoutAction());
         }
         return;
       }
 
-      const applyAuth = async (response: Awaited<ReturnType<typeof authApiRepository.refresh>>) => {
-        await secureStorage.setTokens(response.accessToken, response.refreshToken);
+      const applyAuth = async (response: AuthResponse) => {
+        // refreshSession() already persisted the rotated tokens.
         dispatch(
           setAuthenticated({
             userId: response.user.id,
@@ -80,27 +83,37 @@ export const restoreAuthSession = createAsyncThunk(
         await loadUserBootstrapData(dispatch);
       };
 
-      if (auth.isAuthenticated && auth.userId) {
+      const hasPersistedSession = auth.isAuthenticated && auth.userId !== null;
+
+      // Fast path: a persisted session plus known-offline means we trust the
+      // stored session and let the user work with cached content.
+      if (hasPersistedSession && !selectIsOnline(getState() as RootState)) {
+        return;
+      }
+
+      if (hasPersistedSession) {
         try {
           await dispatch(fetchProfile()).unwrap();
           await Promise.all([dispatch(fetchStats()), dispatch(fetchPaths())]);
-          return;
         } catch {
-          try {
-            await applyAuth(await authApiRepository.refresh(refreshToken));
-          } catch {
-            await secureStorage.clearTokens();
-            dispatch(logoutAction());
-          }
+          // The refresh interceptor is the sole authority on session death: if
+          // the refresh token was rejected it already cleared the session and
+          // dispatched logout. Every other failure (network, timeout, 5xx) must
+          // leave the session intact so the user keeps cached content.
         }
         return;
       }
 
       try {
-        await applyAuth(await authApiRepository.refresh(refreshToken));
-      } catch {
-        await secureStorage.clearTokens();
-        dispatch(logoutAction());
+        await applyAuth(await refreshSession());
+      } catch (err) {
+        if (err instanceof RefreshAuthError) {
+          await secureStorage.clearTokens();
+          dispatch(logoutAction());
+          return;
+        }
+        // RefreshNetworkError: never log out. A persisted session stays intact
+        // so the user keeps access to offline content.
       }
     } finally {
       dispatch(setSessionReady(true));

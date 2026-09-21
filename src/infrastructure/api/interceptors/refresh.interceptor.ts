@@ -2,9 +2,21 @@ import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axio
 import { logout } from '../../../application/slices/auth.slice';
 import { secureStorage } from '../../storage/secure-storage';
 import { getStoreRef } from '../store-ref';
+import { refreshSession, RefreshAuthError } from '../token-refresh';
 
 interface RetryableConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
+}
+
+function readBearer(headers: RetryableConfig['headers']): string | null {
+  const raw = headers?.['Authorization'];
+  if (typeof raw !== 'string') return null;
+  return raw.startsWith('Bearer ') ? raw.slice(7) : raw;
+}
+
+async function destroySession(): Promise<void> {
+  await secureStorage.clearTokens();
+  getStoreRef()?.dispatch(logout());
 }
 
 export function applyRefreshInterceptor(client: AxiosInstance): void {
@@ -17,38 +29,36 @@ export function applyRefreshInterceptor(client: AxiosInstance): void {
         return Promise.reject(error);
       }
 
-      // Don't retry refresh endpoint itself
+      // Safety net: the real refresh runs on a bare client, never refresh a refresh.
       if (config.url?.includes('/auth/refresh')) {
-        const store = getStoreRef();
-        if (store) {
-          await secureStorage.clearTokens();
-          store.dispatch(logout());
-        }
         return Promise.reject(error);
       }
 
       config._retry = true;
 
       try {
-        const refreshToken = await secureStorage.getRefreshToken();
-        if (!refreshToken) throw new Error('No refresh token');
+        const usedToken = readBearer(config.headers);
+        const storedToken = await secureStorage.getAccessToken();
 
-        const { data } = await client.post<{ accessToken: string; refreshToken: string }>(
-          '/v1/auth/refresh',
-          { refreshToken },
-        );
+        // The token rotated while this request was in flight: retry with the
+        // fresh one instead of burning another single-use refresh token.
+        if (storedToken && usedToken && storedToken !== usedToken) {
+          config.headers = config.headers ?? {};
+          config.headers['Authorization'] = `Bearer ${storedToken}`;
+          return await client(config);
+        }
 
-        await secureStorage.setTokens(data.accessToken, data.refreshToken);
+        // Shared single-flight refresh: N concurrent 401s => 1 rotation.
+        const { accessToken } = await refreshSession();
 
         config.headers = config.headers ?? {};
-        config.headers['Authorization'] = `Bearer ${data.accessToken}`;
-
-        return client(config);
-      } catch {
-        const store = getStoreRef();
-        if (store) {
-          await secureStorage.clearTokens();
-          store.dispatch(logout());
+        config.headers['Authorization'] = `Bearer ${accessToken}`;
+        return await client(config);
+      } catch (refreshError) {
+        // Only an explicit rejection of the refresh token ends the session.
+        // A network failure leaves it intact so the user keeps offline access.
+        if (refreshError instanceof RefreshAuthError) {
+          await destroySession();
         }
         return Promise.reject(error);
       }
